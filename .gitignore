@@ -1,0 +1,30 @@
+node_modules/
+dist/
+.next/
+.env
+.env.local
+.env.*.local
+.env.test
+**/.env.test
+*.log
+.DS_Store
+.turbo
+.expo/
+
+# TypeScript build artifacts
+*.tsbuildinfo
+
+# Tool caches
+.superpowers/
+.playwright-mcp/
+.demo/
+.claude/worktrees/
+
+# Drizzle artifacts (drizzle-kit output goes here, ignored in template)
+apps/api/drizzle/meta/
+
+# Mobile build outputs
+apps/mobile/ios/Pods/
+apps/mobile/ios/build/
+apps/mobile/android/.gradle/
+apps/mobile/android/app/build/

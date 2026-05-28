@@ -1,0 +1,16 @@
+{
+  "slug": "fxl-finders",
+  "name": "Fxl Finders",
+  "stack_choices": {
+    "platform": "web+mobile",
+    "framework": "vite",
+    "auth": "clerk",
+    "database": "postgresql",
+    "orm": "drizzle",
+    "backend": "hono",
+    "deploy_frontend": "vercel",
+    "deploy_backend": "coolify",
+    "ci": "github-actions",
+    "contract_version": "1.0"
+  }
+}

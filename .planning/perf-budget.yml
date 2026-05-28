@@ -1,0 +1,17 @@
+# Performance budget for fxl-template
+# This file ships with the template. Downstream projects copy it as a starting point.
+#
+# The template itself runs a stub perf-audit (scripts/perf-audit.mjs exits 0).
+# Real rules activate when a client project inherits this and wires real audits.
+
+rules:
+  data_auth:
+    severity: error
+  code_style:
+    severity: error
+  loading_states:
+    severity: warning
+  api_pattern:
+    severity: error
+
+exemptions: []

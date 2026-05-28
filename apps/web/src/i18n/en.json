@@ -1,0 +1,23 @@
+{
+  "app": {
+    "name": "Fxl Finders"
+  },
+  "nav": {
+    "home": "Home",
+    "items": "Items",
+    "config": "Settings"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign out"
+  },
+  "empty": {
+    "title": "No data yet",
+    "description": "Start by configuring your integrations to see data here."
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try again"
+  }
+}

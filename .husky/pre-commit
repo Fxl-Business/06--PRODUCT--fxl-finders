@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# FXL perf-audit gate. Runs on every commit.
+# To bypass in emergency, the commit message MUST include:
+#   Perf-Audit-Bypass: <reason>
+# AND a tracked follow-up issue. Use of --no-verify is forbidden by policy.
+pnpm run perf:audit

@@ -1,0 +1,4 @@
+# Mobile is its own pnpm scope, isolated from the main workspace.
+# Reason: Expo 54 + React Native 0.81 + React 19.1 conflict with React 18
+# pinned by apps/web. Running this as a separate scope avoids hoist conflicts.
+packages: []

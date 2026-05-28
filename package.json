@@ -1,0 +1,30 @@
+{
+  "name": "fxl-finders",
+  "version": "1.0.0",
+  "private": true,
+  "fxlContractVersion": "1.0",
+  "fxlAppId": "fxl-finders",
+  "scripts": {
+    "build": "pnpm --filter @fxl-finders/shared-types build && pnpm --filter @fxl-finders/shared-utils build && pnpm --filter @fxl-finders/api build && pnpm --filter @fxl-finders/web build",
+    "type-check": "pnpm -r type-check",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r --if-present test",
+    "perf:audit": "node scripts/perf-audit.mjs",
+    "install:all": "pnpm install",
+    "prepare": "husky || true"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "18.2.79",
+      "@types/react-dom": "^18.3.5"
+    }
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}
