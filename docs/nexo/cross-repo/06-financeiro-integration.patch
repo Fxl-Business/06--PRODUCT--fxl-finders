@@ -1,0 +1,495 @@
+# ============================================================================
+# CROSS-REPO PATCH — FXL Finders ↔ fxl-financiero integration (Phase 06, Side B)
+#
+# Repo:        the sibling finance app (on-disk dir 1-fxl-financ*; in-code app SLUG = 'fxl-financiero', D-A)
+# Branch:      feat/fxl-finders-integration  (local commit 56ccaca2; NEVER pushed)
+# Forked from: fc3c7ba0 (HEAD of feature/v8.0-org-subscriptions-access-gating at patch time)
+# Generated:   git diff fc3c7ba0..feat/fxl-finders-integration
+#
+# >>> DO NOT MERGE without fxl-financiero tech-lead review. <<<
+# This is a HANDOFF ARTIFACT. The branch lives only on the author's machine.
+#
+# Files touched (11):
+#   apps/api/.env.example                              (new env vars)
+#   apps/api/src/db/schema/checkout.ts                 (click_id + fxl_sig cols)
+#   apps/api/src/db/schema/org-attribution.ts          (click_id col)
+#   apps/api/src/domains/billing/__tests__/activation-bridge.test.ts (fixture: +2 cols)
+#   apps/api/src/domains/checkout/service.ts           (body schema + insert)
+#   apps/api/src/domains/partners/service.ts           (markOrgFirstPaid → webhook trigger)
+#   apps/api/src/lib/fxl-finders-webhook.ts            (NEW — inline HMAC sender)
+#   apps/site/src/app/api/checkout/asaas/route.ts      (thread fxl_ref/fxl_sig cookies)
+#   apps/site/src/app/precos/page.tsx                  (accept ?ref + ?fxl_sig)
+#   apps/site/src/middleware.ts                        (capture ?ref/?fxl_sig → cookies)
+#   migrations/063_fxl_finders_attribution.sql         (NEW — nullable cols)
+#
+# Webhook contract (must match FXL Finders Phase 05 verifier):
+#   - source = 'fxl-financiero' (D-A canonical slug; …ciero)
+#   - body   = D-M field set (incl. customer_name / customer_phone / customer_cpf)
+#   - idempotency_key = sha256(source + external_order_id + event_type)  (D-N, plain SHA-256)
+#   - X-FXL-Signature: t=<unix_ts>,v1=HMAC-SHA256(secret, t + "." + rawBody)  (D-O)
+#   - fxl_sig is STORED ONLY on the financiero side; verification deferred (D-P)
+#
+# Type-check: `pnpm tsc --noEmit` passes in BOTH apps/api and apps/site (verified at patch time).
+#
+# REQUIRED before staging deploy:
+#   1. Set FXL_FINDERS_API_URL to the real FXL Finders API URL (placeholder in .env.example).
+#   2. Set FXL_FINDERS_WEBHOOK_SECRET = FXL Finders apps.webhook_signing_secret for slug
+#      'fxl-financiero' (the seed migration 0006 generates a random secret — rotate via the
+#      FXL Finders admin UI and inject the SAME value here via Infisical; never commit it).
+#   3. (Optional) NEXT_PUBLIC_COOKIE_DOMAIN to a leading-dot domain (e.g. .fxlfinanceiro.com.br)
+#      so the fxl_ref/fxl_sig cookies propagate across the checkout subdomain.
+#   4. Apply migration 063 (numbered SQL, matches this repo's hand-numbered convention).
+# ============================================================================
+
+diff --git a/apps/api/.env.example b/apps/api/.env.example
+index 00fb6825..8113f31d 100644
+--- a/apps/api/.env.example
++++ b/apps/api/.env.example
+@@ -124,3 +124,13 @@ AI_GATEWAY_API_KEY=
+ AI_GATEWAY_MODEL_DEFAULT=anthropic/claude-haiku-4.5
+ # Fallback = cross-provider so a single-provider outage still streams.
+ AI_GATEWAY_MODEL_FALLBACK=google/gemini-2.5-flash
++
++# ─── FXL Finders affiliate integration (cross-repo) ───────────────────────────
++# Outbound conversion webhook → FXL Finders, fired when an org is marked first-paid.
++# FXL_FINDERS_API_URL: base URL of the FXL Finders API. PLACEHOLDER — set the real
++#   URL before the staging deploy.
++FXL_FINDERS_API_URL=https://api.fxlfinders.com.br
++# FXL_FINDERS_WEBHOOK_SECRET: HMAC signing secret for the X-FXL-Signature header.
++#   MUST equal apps.webhook_signing_secret for slug 'fxl-financiero' in FXL Finders.
++#   Generate/rotate in the FXL Finders admin UI; inject via Infisical (never commit).
++FXL_FINDERS_WEBHOOK_SECRET=
+diff --git a/apps/api/src/db/schema/checkout.ts b/apps/api/src/db/schema/checkout.ts
+index f98515f8..87068133 100644
+--- a/apps/api/src/db/schema/checkout.ts
++++ b/apps/api/src/db/schema/checkout.ts
+@@ -71,6 +71,17 @@ export const checkoutAttempts = pgTable(
+     // -------- Org linkage (set AFTER customer signs up via Clerk) --------
+     orgId: text('org_id'),
+ 
++    // -------- FXL Finders referral attribution (cross-repo integration) --------
++    // click_id: the FXL Finders click ULID (last-touch), threaded from the
++    //   ?ref query param / fxl_ref cookie at checkout time. Persisted so the
++    //   conversion webhook to FXL Finders can resolve attribution by click_id.
++    // fxl_sig: the raw ?fxl_sig referral HMAC from the redirect. STORED ONLY —
++    //   verification is DEFERRED per D-P (FXL Finders does not validate it in
++    //   v1.0; we keep it raw for future verification / audit). Do NOT validate
++    //   it on this side.
++    clickId: text('click_id'),
++    fxlSig: text('fxl_sig'), // store-only, verification deferred (D-P)
++
+     // -------- v8.0 / Phase 222 — loans add-on --------
+     // Set after the second Asaas subscription is created for the loans module.
+     // Copied to subscriptions.addon_loans_asaas_subscription_id by the
+diff --git a/apps/api/src/db/schema/org-attribution.ts b/apps/api/src/db/schema/org-attribution.ts
+index f9ef2cb9..454318e1 100644
+--- a/apps/api/src/db/schema/org-attribution.ts
++++ b/apps/api/src/db/schema/org-attribution.ts
+@@ -19,6 +19,9 @@ export const orgAttribution = pgTable(
+     firstPaidAt:        timestamp('first_paid_at', { withTimezone: true }),
+     attributedAt:       timestamp('attributed_at', { withTimezone: true }).defaultNow().notNull(),
+     attributedBy:       text('attributed_by').notNull(),
++    // FXL Finders referral attribution: propagated from checkout_attempts.click_id
++    // at attribution time so the conversion webhook can carry the click ULID.
++    clickId:            text('click_id'),
+     createdAt:          timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+     updatedAt:          timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+   },
+diff --git a/apps/api/src/domains/billing/__tests__/activation-bridge.test.ts b/apps/api/src/domains/billing/__tests__/activation-bridge.test.ts
+index b5d9a76c..141b48ce 100644
+--- a/apps/api/src/domains/billing/__tests__/activation-bridge.test.ts
++++ b/apps/api/src/domains/billing/__tests__/activation-bridge.test.ts
+@@ -54,6 +54,9 @@ function makeAttempt(overrides: Partial<{
+     addonLoansAsaasSubscriptionId: null,
+     // Phase 225: Clerk user_id field added in migration 061
+     clerkUserId: null,
++    // FXL Finders referral attribution (migration 063) — store-only fxl_sig (D-P).
++    clickId: null,
++    fxlSig: null,
+     createdAt: NOW,
+     updatedAt: NOW,
+     completedAt: NOW,
+diff --git a/apps/api/src/domains/checkout/service.ts b/apps/api/src/domains/checkout/service.ts
+index d954c3b7..9101bc4b 100644
+--- a/apps/api/src/domains/checkout/service.ts
++++ b/apps/api/src/domains/checkout/service.ts
+@@ -56,6 +56,11 @@ export const createCheckoutAttemptBodySchema = z.object({
+   // (intentPayload.userId). Enables per-user attempt scoping and correct
+   // grantSetupCredit keying. Nullable for legacy rows pre-migration 061.
+   clerk_user_id: z.string().optional(),
++  // FXL Finders referral attribution (cross-repo integration). Threaded from the
++  // ?ref / ?fxl_sig query params (via the fxl_ref / fxl_sig cookies) at checkout.
++  // fxl_sig is STORED ONLY — verification deferred (D-P).
++  click_id: z.string().optional(),
++  fxl_sig: z.string().optional(),
+ })
+ 
+ export type CreateCheckoutAttemptBody = z.infer<typeof createCheckoutAttemptBodySchema>
+@@ -160,6 +165,9 @@ export async function createCheckoutAttempt(
+       modules: data.modules ?? null,
+       // Phase 225 security fix: Clerk user_id from verified intent
+       clerkUserId: data.clerk_user_id ?? null,
++      // FXL Finders referral attribution (cross-repo). fxl_sig stored only (D-P).
++      clickId: data.click_id ?? null,
++      fxlSig: data.fxl_sig ?? null,
+     })
+     .returning()
+ 
+diff --git a/apps/api/src/domains/partners/service.ts b/apps/api/src/domains/partners/service.ts
+index 68e1a6b9..a5e25944 100644
+--- a/apps/api/src/domains/partners/service.ts
++++ b/apps/api/src/domains/partners/service.ts
+@@ -21,8 +21,10 @@ import {
+   partnerProfiles,
+   orgAttribution,
+   commissionLedger,
++  checkoutAttempts,
+   type CommissionKind,
+ } from '@/db/schema/index.js'
++import { notifyFxlFindersConversion } from '@/lib/fxl-finders-webhook.js'
+ import { audit } from '@/lib/audit.js'
+ import {
+   INDICATOR_BASE_BRL,
+@@ -121,7 +123,7 @@ export async function getOrgAttribution(orgId: string) {
+ // Commission engine — markOrgFirstPaid / unmarkOrgFirstPaid
+ // =====================================================================
+ export async function markOrgFirstPaid(orgId: string, actor: ActorContext) {
+-  return db.transaction(async (tx) => {
++  const result = await db.transaction(async (tx) => {
+     const existing = await tx.select().from(orgAttribution)
+       .where(eq(orgAttribution.orgId, orgId))
+ 
+@@ -133,9 +135,25 @@ export async function markOrgFirstPaid(orgId: string, actor: ActorContext) {
+       throw new ConflictError('org is already first-paid', 'ALREADY_FIRST_PAID')
+     }
+ 
++    // FXL Finders integration: resolve the checkout_attempts row for this org to
++    // carry the referral click_id + sale amounts + customer PII into the outbound
++    // conversion webhook. Most-recent attempt for the org (org_id is set after the
++    // customer signs up via Clerk; may be null on legacy rows — handled below).
++    const [checkout] = await tx
++      .select()
++      .from(checkoutAttempts)
++      .where(eq(checkoutAttempts.orgId, orgId))
++      .orderBy(desc(checkoutAttempts.createdAt))
++      .limit(1)
++
+     const now = new Date()
+     await tx.update(orgAttribution)
+-      .set({ firstPaidAt: now, updatedAt: now })
++      .set({
++        firstPaidAt: now,
++        updatedAt: now,
++        // Propagate the referral click_id (D-M / D10) onto org_attribution.
++        clickId: checkout?.clickId ?? attr.clickId ?? null,
++      })
+       .where(eq(orgAttribution.orgId, orgId))
+ 
+     const rows: Array<{ userId: string; orgId: string; kind: CommissionKind; amountBrl: number }> = []
+@@ -172,8 +190,39 @@ export async function markOrgFirstPaid(orgId: string, actor: ActorContext) {
+       },
+     })
+ 
+-    return { firstPaidAt: now, accrued: inserted }
++    return { firstPaidAt: now, accrued: inserted, checkout, attr }
+   })
++
++  // ── FXL Finders outbound conversion webhook (fire-and-forget) ──────────────
++  // Fired AFTER the transaction commits so the sale flow is never blocked by a
++  // downstream affiliate call. Guard (failure-list #4): if no checkout_attempts
++  // row resolves for this org, skip the send (do not throw, do not send a partial
++  // body). finder_code stays null — FXL Finders resolves attribution by click_id
++  // (referral_links is a FXL Finders table, not visible here).
++  const { checkout, attr } = result
++  if (checkout) {
++    void notifyFxlFindersConversion({
++      orgId,
++      clickId: checkout.clickId ?? null,
++      finderCode: null,
++      sellerClerkId: attr.soldByUserId ?? null,
++      customerEmail: checkout.customerEmail,
++      customerName: checkout.customerName,
++      customerPhone: checkout.customerPhone ?? null,
++      customerCpf: checkout.customerCpfCnpj ?? null,
++      setupAmountBrl: checkout.setupAmountBrl,
++      monthlyAmountBrl: checkout.monthlyAmountBrl,
++      firstPaidAt: result.firstPaidAt,
++    }).catch((err) => {
++      console.error('[fxl-finders-webhook] notify failed', err)
++    })
++  } else {
++    console.warn(
++      `[fxl-finders-webhook] no checkout_attempts row for org ${orgId} — skipping conversion webhook`,
++    )
++  }
++
++  return { firstPaidAt: result.firstPaidAt, accrued: result.accrued }
+ }
+ 
+ export async function unmarkOrgFirstPaid(orgId: string, reason: string, actor: ActorContext) {
+diff --git a/apps/api/src/lib/fxl-finders-webhook.ts b/apps/api/src/lib/fxl-finders-webhook.ts
+new file mode 100644
+index 00000000..e50e78b2
+--- /dev/null
++++ b/apps/api/src/lib/fxl-finders-webhook.ts
+@@ -0,0 +1,116 @@
++/**
++ * FXL Finders outbound conversion webhook (cross-repo integration).
++ *
++ * Fired (fire-and-forget) after an org is marked first-paid. Posts the conversion
++ * to FXL Finders' POST /api/v1/conversions with an HMAC-signed X-FXL-Signature
++ * header. The HMAC is implemented INLINE here (this repo cannot import FXL Finders'
++ * packages/shared-utils across repos).
++ *
++ * MUST byte-match FXL Finders packages/shared-utils/src/hmac.ts verifyHmac():
++ *   payload = `${t}.${rawBody}`; hmac = HMAC-SHA256(secret, payload) hex.
++ *   header  = `t=${t},v1=${hmac}`.
++ * INVARIANT (FXL Finders D-O): sign over the IDENTICAL raw byte string sent as the
++ * request body — never re-serialize between sign → send.
++ */
++import { createHmac, createHash } from 'node:crypto'
++
++// MUST byte-match FXL Finders packages/shared-utils/src/hmac.ts verifyHmac()
++// Formula: hmac = createHmac('sha256', secret).update(t + "." + rawBody).digest('hex')
++function signPayload(rawBody: string, secret: string): string {
++  const t = Math.floor(Date.now() / 1000).toString()
++  const hmac = createHmac('sha256', secret).update(`${t}.${rawBody}`).digest('hex')
++  return `t=${t},v1=${hmac}`
++}
++
++async function sendWithRetry(url: string, body: object, secret: string): Promise<void> {
++  // Serialize ONCE — both the signature and the request body use this exact string.
++  const rawBody = JSON.stringify(body)
++  const signature = signPayload(rawBody, secret)
++  const delays = [1000, 2000, 4000] // exponential backoff (D8)
++  for (let attempt = 0; attempt <= delays.length; attempt++) {
++    try {
++      const res = await fetch(url, {
++        method: 'POST',
++        headers: {
++          'Content-Type': 'application/json',
++          'X-FXL-Signature': signature,
++        },
++        body: rawBody,
++      })
++      // Success or any non-5xx (4xx is a client error — do NOT retry).
++      if (res.ok || res.status < 500) return
++    } catch {
++      // Network error — fall through to backoff/retry.
++    }
++    if (attempt < delays.length) {
++      await new Promise((r) => setTimeout(r, delays[attempt]))
++    }
++  }
++  // Final failure: log for ops visibility. Do NOT throw — the sale flow must not be
++  // blocked by a downstream affiliate webhook. (A webhook_send_failures table is a
++  // v1.1 enhancement; ops reads logs for now.)
++  console.error('[fxl-finders-webhook] final delivery failure', { url })
++}
++
++export interface NotifyFxlFindersConversionParams {
++  orgId: string
++  clickId: string | null
++  finderCode: string | null
++  sellerClerkId: string | null
++  customerEmail: string
++  customerName: string
++  customerPhone: string | null
++  customerCpf: string | null
++  setupAmountBrl: number
++  monthlyAmountBrl: number
++  firstPaidAt: Date
++}
++
++/**
++ * Notifies FXL Finders of a closed sale. No-ops (with a warning) when the integration
++ * env vars are absent — never throws. Emits EXACTLY the FXL Finders D-M field set with
++ * source='fxl-financiero' (D-A) and a plain-SHA-256 idempotency_key (D-N).
++ */
++export async function notifyFxlFindersConversion(
++  params: NotifyFxlFindersConversionParams,
++): Promise<void> {
++  const apiUrl = process.env.FXL_FINDERS_API_URL
++  const secret = process.env.FXL_FINDERS_WEBHOOK_SECRET
++  if (!apiUrl || !secret) {
++    console.warn(
++      '[fxl-finders-webhook] FXL_FINDERS_API_URL or FXL_FINDERS_WEBHOOK_SECRET not set — skipping',
++    )
++    return
++  }
++
++  const source = 'fxl-financiero' // D-A canonical slug (…ciero) — byte-identical to FXL Finders apps.slug
++  const externalOrderId = params.orgId
++  const eventType = 'sale'
++  // D-N: idempotency_key is PLAIN SHA-256 (NOT HMAC). Byte-matches FXL Finders
++  // buildIdempotencyKey(source, externalOrderId, eventType).
++  const idempotencyKey = createHash('sha256')
++    .update(source + externalOrderId + eventType)
++    .digest('hex')
++
++  await sendWithRetry(
++    `${apiUrl}/api/v1/conversions`,
++    {
++      source,
++      external_order_id: externalOrderId,
++      event_type: eventType,
++      idempotency_key: idempotencyKey,
++      click_id: params.clickId,
++      finder_code: params.finderCode,
++      seller_clerk_id: params.sellerClerkId,
++      customer_email: params.customerEmail,
++      customer_name: params.customerName,
++      customer_phone: params.customerPhone,
++      customer_cpf: params.customerCpf,
++      customer_org_id: params.orgId,
++      realized_setup_brl: params.setupAmountBrl,
++      realized_monthly_brl: params.monthlyAmountBrl,
++      closed_at: params.firstPaidAt.toISOString(),
++    },
++    secret,
++  )
++}
+diff --git a/apps/site/src/app/api/checkout/asaas/route.ts b/apps/site/src/app/api/checkout/asaas/route.ts
+index 1aedf668..f95a38bf 100644
+--- a/apps/site/src/app/api/checkout/asaas/route.ts
++++ b/apps/site/src/app/api/checkout/asaas/route.ts
+@@ -314,6 +314,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
+   const ip = getClientIp(req)
+   const userAgent = req.headers.get('user-agent') ?? ''
+ 
++  // FXL Finders referral attribution: read the fxl_ref (click_id) + fxl_sig cookies
++  // set by middleware.ts when the visitor landed via ?ref/?fxl_sig. Stored on the
++  // checkout_attempts row; fxl_sig is persisted only (verification deferred, D-P).
++  const fxlClickId = req.cookies.get('fxl_ref')?.value
++  const fxlSig = req.cookies.get('fxl_sig')?.value
++
+   // 4b. Intent token verification (222-02-T3 / PAY-02 + PAY-03)
+   // Re-verify server-side — the client forwarded the raw token string.
+   // NEVER trust the client to supply org_id directly.
+@@ -587,6 +593,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
+       // so checkout_attempts.clerk_user_id is set, enabling per-user attempt scoping
+       // (prevents cross-user attempt theft) and correct grantSetupCredit keying.
+       clerk_user_id: intentPayload?.userId ?? undefined,
++      // FXL Finders referral attribution (cross-repo). fxl_sig stored only (D-P).
++      click_id: fxlClickId,
++      fxl_sig: fxlSig,
+     },
+   })
+ 
+diff --git a/apps/site/src/app/precos/page.tsx b/apps/site/src/app/precos/page.tsx
+index 7f7b161f..3e6e0a28 100644
+--- a/apps/site/src/app/precos/page.tsx
++++ b/apps/site/src/app/precos/page.tsx
+@@ -45,7 +45,17 @@ const productJsonLd = {
+   })),
+ };
+ 
+-export default function PrecosPage() {
++// FXL Finders referral: a visitor may land here with ?ref=<click_id>&fxl_sig=<hmac>.
++// The fxl_ref / fxl_sig cookies are set by middleware.ts (HttpOnly, Secure,
++// SameSite=Lax, 90-day, per D-R); this page only needs to accept the params without
++// erroring. Accepting searchParams opts the page into dynamic rendering on a referral
++// landing (static otherwise). fxl_sig is stored only, never verified on this side (D-P).
++interface PrecosPageProps {
++  searchParams: Promise<Record<string, string | string[] | undefined>>
++}
++
++export default async function PrecosPage({ searchParams }: PrecosPageProps) {
++  await searchParams // consume the params; cookie persistence is handled in middleware.ts
+   return (
+     <>
+       <script
+diff --git a/apps/site/src/middleware.ts b/apps/site/src/middleware.ts
+index b752ba73..df1494f2 100644
+--- a/apps/site/src/middleware.ts
++++ b/apps/site/src/middleware.ts
+@@ -11,7 +11,44 @@
+ // Web-API only (btoa + crypto.getRandomValues) so this is runtime-portable.
+ import { NextResponse, type NextRequest } from 'next/server'
+ 
++// ── FXL Finders referral capture ─────────────────────────────────────────────
++// When a visitor lands with ?ref (FXL Finders click_id ULID) and ?fxl_sig (the
++// referral HMAC), persist them in HttpOnly cookies (per FXL Finders D-R):
++//   HttpOnly, Secure, SameSite=Lax, 90-day. The click_id is already in the URL,
++//   so the cookie does NOT need to be JS-readable — keep it HttpOnly. The raw
++//   fxl_sig is STORED ONLY (verification deferred per D-P). A `domain` attribute
++//   propagates the cookie across the checkout subdomain (failure-list #5).
++const FXL_COOKIE_MAX_AGE = 60 * 60 * 24 * 90 // 90 days, in seconds
++const FXL_COOKIE_DOMAIN = process.env.NEXT_PUBLIC_COOKIE_DOMAIN // e.g. '.fxlfinanceiro.com.br'
++
++function captureReferral(request: NextRequest, response: NextResponse): void {
++  const ref = request.nextUrl.searchParams.get('ref')
++  const sig = request.nextUrl.searchParams.get('fxl_sig')
++  if (!ref) return
++  const isProd = process.env.NODE_ENV === 'production'
++  const common = {
++    httpOnly: true,
++    secure: isProd,
++    sameSite: 'lax' as const,
++    maxAge: FXL_COOKIE_MAX_AGE,
++    path: '/',
++    ...(FXL_COOKIE_DOMAIN ? { domain: FXL_COOKIE_DOMAIN } : {}),
++  }
++  response.cookies.set('fxl_ref', ref, common)
++  if (sig) response.cookies.set('fxl_sig', sig, common)
++}
++
+ export function middleware(request: NextRequest): NextResponse {
++  // The CSP/nonce logic below only matters on the card-data page. The /precos
++  // landing is matched solely to capture the referral cookie — apply the cookie
++  // there but NOT the strict CSP (which would break the marketing page).
++  const isCheckoutCreditCard = request.nextUrl.pathname === '/checkout/credit-card'
++  if (!isCheckoutCreditCard) {
++    const response = NextResponse.next()
++    captureReferral(request, response)
++    return response
++  }
++
+   const nonce = btoa(crypto.randomUUID())
+   const isDev = process.env.NODE_ENV !== 'production'
+ 
+@@ -45,8 +82,9 @@ export function middleware(request: NextRequest): NextResponse {
+   return response
+ }
+ 
+-// Scope strictly to the card-data checkout page — the rest of the site is
+-// unaffected (it relies on inline scripts/styles and has no such CSP).
++// Card-data checkout page → strict CSP + nonce. /precos → referral-cookie capture
++// only (no CSP). Both run the referral-cookie logic so a ?ref landing on either
++// page is persisted for the conversion webhook (FXL Finders integration).
+ export const config = {
+-  matcher: ['/checkout/credit-card'],
++  matcher: ['/checkout/credit-card', '/precos'],
+ }
+diff --git a/migrations/063_fxl_finders_attribution.sql b/migrations/063_fxl_finders_attribution.sql
+new file mode 100644
+index 00000000..2f1b4d0b
+--- /dev/null
++++ b/migrations/063_fxl_finders_attribution.sql
+@@ -0,0 +1,26 @@
++-- ============================================================================
++-- FXL Finders integration — referral attribution columns
++--
++-- Adds nullable columns used by the FXL Finders affiliate integration:
++--   checkout_attempts.click_id  — FXL Finders click ULID (last-touch), threaded
++--                                 from ?ref at checkout time.
++--   checkout_attempts.fxl_sig   — raw ?fxl_sig referral HMAC. STORED ONLY;
++--                                 verification deferred per FXL Finders D-P.
++--   org_attribution.click_id    — propagated from checkout_attempts at the time
++--                                 first_paid_at is set, so the outbound conversion
++--                                 webhook can resolve attribution by click_id.
++--
++-- All columns are nullable (no backfill). Idempotent: IF NOT EXISTS guards.
++-- Forward-only.
++-- ============================================================================
++
++BEGIN;
++
++ALTER TABLE checkout_attempts
++  ADD COLUMN IF NOT EXISTS click_id text,
++  ADD COLUMN IF NOT EXISTS fxl_sig  text;
++
++ALTER TABLE org_attribution
++  ADD COLUMN IF NOT EXISTS click_id text;
++
++COMMIT;

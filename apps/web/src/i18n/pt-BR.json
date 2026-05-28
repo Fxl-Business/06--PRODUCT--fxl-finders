@@ -132,6 +132,50 @@
     "previous": "Anterior",
     "next": "Próximo"
   },
+  "payouts": {
+    "title": "Pagamentos",
+    "findersReady": "Finders prontos para pagamento",
+    "createBatch": "Criar Pagamentos",
+    "empty": "Nenhum finder com comissões prontas para pagamento",
+    "notPayable": "Sem CPF/PIX",
+    "kpi": {
+      "finders": "Finders",
+      "totalReady": "Total a pagar",
+      "blocked": "Bloqueados (sem CPF/PIX)"
+    },
+    "columns": {
+      "finderName": "Finder",
+      "cpf": "CPF",
+      "pixKey": "Chave PIX",
+      "pixKeyType": "Tipo",
+      "amount": "Valor",
+      "commissionCount": "Comissões"
+    },
+    "errors": {
+      "notPayable": "Um dos finders selecionados está sem CPF/PIX e não pode ser pago.",
+      "generic": "Não foi possível criar os pagamentos. Tente novamente."
+    },
+    "batches": {
+      "title": "Pagamentos",
+      "empty": "Nenhum pagamento criado ainda",
+      "download": "Baixar CSV",
+      "markPaid": "Marcar como Pago",
+      "confirmPaid": "Confirmar pagamento? Esta ação não pode ser desfeita.",
+      "columns": {
+        "id": "ID",
+        "createdAt": "Criado em",
+        "amount": "Valor",
+        "status": "Status",
+        "actions": "Ações"
+      },
+      "status": {
+        "draft": "Rascunho",
+        "exported": "Exportado",
+        "paid": "Pago",
+        "voided": "Anulado"
+      }
+    }
+  },
   "admin": {
     "title": "Administração",
     "nav": {

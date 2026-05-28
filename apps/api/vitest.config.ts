@@ -23,6 +23,13 @@ export default defineConfig({
         globalSetup: ['./test/rls/global-setup.ts'], // D-G: migrate before RLS tests
         testTimeout: 30000,
         hookTimeout: 30000,
+        // The integration suite shares ONE Postgres test DB and exercises GLOBAL
+        // tables (conversions/webhook_events and the hash-chained audit_log). Two
+        // conversion-ingesting files (Phase 05 conversion-ingest + Phase 06
+        // conversion-webhook-contract) corrupt each other's attribution/dedup/audit
+        // assertions if run in parallel workers. Force serial file execution so the
+        // shared-DB integration tests are deterministic.
+        fileParallelism: false,
       }
     : {
         include: ['src/**/__tests__/**/*.test.ts'],

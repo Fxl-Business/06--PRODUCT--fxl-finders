@@ -132,6 +132,50 @@
     "previous": "Previous",
     "next": "Next"
   },
+  "payouts": {
+    "title": "Payouts",
+    "findersReady": "Finders ready for payout",
+    "createBatch": "Create Payouts",
+    "empty": "No finders with commissions ready for payout",
+    "notPayable": "No CPF/PIX",
+    "kpi": {
+      "finders": "Finders",
+      "totalReady": "Total to pay",
+      "blocked": "Blocked (no CPF/PIX)"
+    },
+    "columns": {
+      "finderName": "Finder",
+      "cpf": "CPF",
+      "pixKey": "PIX Key",
+      "pixKeyType": "Type",
+      "amount": "Amount",
+      "commissionCount": "Commissions"
+    },
+    "errors": {
+      "notPayable": "One of the selected finders is missing CPF/PIX and cannot be paid.",
+      "generic": "Could not create payouts. Please try again."
+    },
+    "batches": {
+      "title": "Payouts",
+      "empty": "No payouts created yet",
+      "download": "Download CSV",
+      "markPaid": "Mark as Paid",
+      "confirmPaid": "Confirm payment? This action cannot be undone.",
+      "columns": {
+        "id": "ID",
+        "createdAt": "Created",
+        "amount": "Amount",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "status": {
+        "draft": "Draft",
+        "exported": "Exported",
+        "paid": "Paid",
+        "voided": "Voided"
+      }
+    }
+  },
   "admin": {
     "title": "Administration",
     "nav": {

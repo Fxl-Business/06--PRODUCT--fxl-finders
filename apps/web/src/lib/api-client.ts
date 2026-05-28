@@ -43,6 +43,37 @@ export async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
+/**
+ * Blob variant of apiFetch (Phase 06 — CSV download, D-J). Goes through the SAME
+ * base URL + Bearer token as apiFetch (NEVER a token-less window.location.href).
+ * Returns the Blob + the Content-Disposition filename (if the server set one).
+ */
+export async function apiFetchBlob(
+  path: string,
+  init?: RequestInit & { token?: string },
+): Promise<{ blob: Blob; filename: string | null }> {
+  const { token, headers, ...rest } = init ?? {};
+  const res = await fetch(`${baseUrl}${path}`, {
+    ...rest,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const err: ApiError = {
+      error: body.error ?? 'request_failed',
+      message: body.message,
+      status: res.status,
+    };
+    throw err;
+  }
+  const disposition = res.headers.get('Content-Disposition');
+  const match = disposition?.match(/filename="?([^"]+)"?/);
+  return { blob: await res.blob(), filename: match?.[1] ?? null };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Admin API clients (Phase 02, D-J). Every call goes through apiFetch (NEVER a
 // bare relative fetch, NEVER apiClient.get). Each call takes a Clerk token the
@@ -340,4 +371,61 @@ export const adminAuditApi = {
       '/api/v1/admin/audit/verify-chain',
       { method: 'GET', token },
     ),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin payouts API (Phase 06, D-J / D-Q). finders-ready, batch create, CSV
+// download, list, mark-paid — all through apiFetch / apiFetchBlob (+ Clerk token).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type FinderCommissionSummary = {
+  finderId: string;
+  finderName: string;
+  cpf: string | null;
+  pixKey: string | null;
+  pixKeyType: string | null;
+  totalBrl: number;
+  commissionIds: string[];
+  payable: boolean;
+  blockedReason: string | null;
+};
+
+export type PayoutStatus = 'draft' | 'exported' | 'paid' | 'voided';
+
+export type PayoutRow = {
+  id: string;
+  finderId: string;
+  totalBrl: number;
+  status: PayoutStatus;
+  csvExportId: string | null;
+  exportedAt: string | null;
+  paidAt: string | null;
+  paidByUserId: string | null;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export const adminPayoutsApi = {
+  findersReady: (token: string) =>
+    apiFetch<{ finders: FinderCommissionSummary[] }>('/api/v1/admin/payouts/finders-ready', {
+      method: 'GET',
+      token,
+    }),
+  list: (token: string) =>
+    apiFetch<{ payouts: PayoutRow[] }>('/api/v1/admin/payouts', { method: 'GET', token }),
+  createBatches: (finderIds: string[], token: string) =>
+    apiFetch<{ payouts: PayoutRow[] }>('/api/v1/admin/payouts/batches', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ finderIds }),
+    }),
+  markPaid: (payoutId: string, token: string) =>
+    apiFetch<{ payout: PayoutRow }>(`/api/v1/admin/payouts/${payoutId}/mark-paid`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify({}),
+    }),
+  downloadCsv: (payoutId: string, token: string) =>
+    apiFetchBlob(`/api/v1/admin/payouts/batches/${payoutId}/csv`, { method: 'GET', token }),
 };
