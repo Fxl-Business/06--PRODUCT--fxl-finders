@@ -1,5 +1,14 @@
 import { NavLink } from 'react-router-dom';
-import { AppWindow, Boxes, Briefcase, ClipboardList, ScrollText, Wallet } from 'lucide-react';
+import {
+  AppWindow,
+  Boxes,
+  Briefcase,
+  ClipboardList,
+  Coins,
+  ScrollText,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
@@ -8,6 +17,8 @@ const items = [
   { to: '/admin/products', icon: Boxes, key: 'admin.nav.products' },
   { to: '/admin/finders', icon: ClipboardList, key: 'admin.nav.finders' },
   { to: '/admin/sellers', icon: Briefcase, key: 'admin.nav.sellers' },
+  { to: '/admin/conversions', icon: TrendingUp, key: 'admin.nav.conversions' },
+  { to: '/admin/commissions', icon: Coins, key: 'admin.nav.commissions' },
   { to: '/admin/payouts', icon: Wallet, key: 'admin.nav.payouts' },
   { to: '/admin/audit', icon: ScrollText, key: 'admin.nav.audit' },
 ] as const;

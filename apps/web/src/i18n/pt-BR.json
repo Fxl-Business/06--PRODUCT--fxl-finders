@@ -128,7 +128,9 @@
     "save": "Salvar",
     "saving": "Salvando...",
     "cancel": "Cancelar",
-    "edit": "Editar"
+    "edit": "Editar",
+    "previous": "Anterior",
+    "next": "Próximo"
   },
   "admin": {
     "title": "Administração",
@@ -138,7 +140,9 @@
       "finders": "Finders",
       "sellers": "Vendedores",
       "payouts": "Pagamentos",
-      "audit": "Auditoria"
+      "audit": "Auditoria",
+      "conversions": "Conversões",
+      "commissions": "Comissões"
     },
     "finders": {
       "title": "Finders",
@@ -283,6 +287,81 @@
         "basisList": "Líquido tabela",
         "saved": "Salvo!",
         "error": "Não foi possível salvar a regra de comissão."
+      }
+    },
+    "conversions": {
+      "title": "Conversões",
+      "empty": "Nenhuma conversão registrada",
+      "kpi": {
+        "total": "Conversões",
+        "setupTotal": "Setup Total",
+        "recurringTotal": "Recorrente Total"
+      },
+      "columns": {
+        "source": "Origem",
+        "orderId": "Pedido",
+        "finder": "Indicador",
+        "seller": "Vendedor",
+        "product": "Produto",
+        "setup": "Setup",
+        "monthly": "Mensalidade",
+        "closedAt": "Data",
+        "status": "Status"
+      }
+    },
+    "commissions": {
+      "title": "Comissões",
+      "empty": "Nenhuma comissão registrada",
+      "status": {
+        "pending": "Pendente",
+        "approved": "Aprovada",
+        "locked": "Bloqueada",
+        "paid": "Paga",
+        "reversed": "Revertida"
+      },
+      "kind": {
+        "setup": "Setup",
+        "recurring": "Recorrente"
+      },
+      "actions": {
+        "lock": "Aprovar / liberar agora",
+        "reverse": "Reverter",
+        "reverseConfirm": "Confirmar Reversão",
+        "reverseReason": "Motivo da reversão"
+      },
+      "kpi": {
+        "total": "Comissões",
+        "pending": "Pendentes",
+        "toLock": "A Pagar"
+      },
+      "columns": {
+        "kind": "Tipo",
+        "basis": "Base",
+        "rate": "Taxa",
+        "amount": "Valor",
+        "status": "Status",
+        "holdUntil": "Liberação",
+        "actions": "Ações"
+      }
+    },
+    "audit": {
+      "title": "Ledger de Auditoria",
+      "empty": "Nenhum registro de auditoria",
+      "pageValid": "Página íntegra",
+      "pageBroken": "Página comprometida",
+      "chainValid": "Cadeia íntegra",
+      "chainBroken": "Cadeia comprometida — quebra em",
+      "verifyFullChain": "Verificar cadeia completa",
+      "systemActor": "sistema",
+      "pageN": "Página {{n}}",
+      "columns": {
+        "ts": "Data/Hora",
+        "actor": "Ator",
+        "action": "Ação",
+        "entity": "Entidade",
+        "entityId": "ID",
+        "requestId": "Request",
+        "chain": "Cadeia"
       }
     }
   }

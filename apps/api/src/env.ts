@@ -33,6 +33,8 @@ const schema = z.object({
   ADMIN_DATABASE_URL: emptyToUndefined,
   CLERK_SECRET_KEY: emptyToUndefined,
   CLERK_PUBLISHABLE_KEY: emptyToUndefined,
+  // Clerk webhook (svix) signing secret for the user.created seller backfill (Phase 05 T07).
+  CLERK_WEBHOOK_SIGNING_SECRET: emptyToUndefined,
   SENTRY_DSN: emptyToUndefinedUrl,
   // Public site origin used to build the referral fullUrl (`/r/<code>`). Phase 04.
   SITE_URL: emptyToUndefinedUrl,

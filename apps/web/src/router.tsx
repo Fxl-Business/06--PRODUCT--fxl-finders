@@ -26,6 +26,15 @@ const AdminFinderDetailPage = lazy(() =>
 const AdminSellersPage = lazy(() =>
   import('./admin/sellers/AdminSellersPage').then((m) => ({ default: m.AdminSellersPage })),
 );
+const ConversionsPage = lazy(() =>
+  import('./admin/conversions/ConversionsPage').then((m) => ({ default: m.ConversionsPage })),
+);
+const CommissionsPage = lazy(() =>
+  import('./admin/commissions/CommissionsPage').then((m) => ({ default: m.CommissionsPage })),
+);
+const AuditLogPage = lazy(() =>
+  import('./admin/audit/AuditLogPage').then((m) => ({ default: m.AuditLogPage })),
+);
 const FinderDashboardPage = lazy(() =>
   import('./finder/dashboard/FinderDashboardPage').then((m) => ({ default: m.FinderDashboardPage })),
 );
@@ -87,8 +96,10 @@ const routes: RouteObject[] = [
       { path: 'finders', element: <AdminFindersPage /> },
       { path: 'finders/:id', element: <AdminFinderDetailPage /> },
       { path: 'sellers', element: <AdminSellersPage /> },
+      { path: 'conversions', element: <ConversionsPage /> },
+      { path: 'commissions', element: <CommissionsPage /> },
       { path: 'payouts', element: <div>TBD Phase 06</div> },
-      { path: 'audit', element: <div>TBD Phase 05</div> },
+      { path: 'audit', element: <AuditLogPage /> },
     ],
   },
   // Finder shell

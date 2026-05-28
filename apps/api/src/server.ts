@@ -5,10 +5,18 @@ import { env } from './env.js';
 import { corsMiddleware } from './middleware/cors.js';
 import { errorMiddleware } from './middleware/error.js';
 import { clerkAuthMiddleware } from './middleware/auth.js';
+import { requireAdmin } from './middleware/require-admin.js';
 import { adminRouter } from './domains/admin/index.js';
 import { findersPublicRouter } from './domains/finders/public-routes.js';
 import { linksRouter } from './domains/links/routes.js';
 import { finderRouter } from './domains/finder/routes.js';
+import { hmacVerifyMiddleware } from './domains/conversions/hmac-middleware.js';
+import { conversionsAdminRouter, conversionsRouter } from './domains/conversions/routes.js';
+import { clerkWebhookRouter } from './domains/sellers/clerk-webhook.js';
+import { commissionsAdminRouter, commissionsRouter } from './domains/commissions/routes.js';
+import { payoutsAdminRouter, payoutsRouter } from './domains/payouts/routes.js';
+import { auditRouter } from './domains/audit/routes.js';
+import { setupNightlyJob } from './jobs/nightly-job.js';
 import { healthRouter } from './routes/health.js';
 
 const app = new Hono();
@@ -24,19 +32,55 @@ app.route('/health', healthRouter);
 // RLS; org_id='' placeholder is invisible to the tenant policy).
 app.route('/api/v1/finders', findersPublicRouter);
 
+// ── Clerk user.created webhook (Phase 05 T07) ────────────────────────────────
+// svix verifies the signature on the raw body. NO clerkAuthMiddleware (Clerk calls
+// it). MUST be registered before any body-parse middleware on this path.
+app.route('/api/v1/webhooks/clerk', clerkWebhookRouter);
+
+// ── Inbound conversion webhook (Phase 05 T06) ────────────────────────────────
+// hmacVerifyMiddleware runs BEFORE body parse on the webhook POST paths (D-O/D-L).
+// NOTE: it is NOT applied to /api/v1/conversions/admin (admin reconciliation read,
+// gated by requireAdmin) — that router is mounted separately below.
+app.use('/api/v1/conversions', hmacVerifyMiddleware);
+app.use('/api/v1/conversions/refund', hmacVerifyMiddleware);
+app.route('/api/v1/conversions', conversionsRouter);
+
+// Admin conversions reconciliation read (D-C: getAdminDb(); requireAdmin; no HMAC).
+app.use('/api/v1/admin/conversions/*', clerkAuthMiddleware, requireAdmin);
+app.route('/api/v1/admin/conversions', conversionsAdminRouter);
+
 // Admin domain (Phase 02 + Phase 03). clerkAuthMiddleware + requireAdmin applied
-// INSIDE the admin router (D-B) — not at app level. Phase 03 adds /finders and
-// /sellers under this same guarded group.
+// INSIDE the admin router (D-B). Phase 03 adds /finders and /sellers under it.
 app.route('/api/v1/admin', adminRouter);
 
-// Finder-authed link generation (Phase 04, T05). clerkAuthMiddleware required
-// (finder JWT); service fns resolve userId → finders.id and wrap tenant work in
-// db.transaction + setTenantContext (D-B/D-D).
+// ── Commissions (Phase 05 T08) ───────────────────────────────────────────────
+// Finder reads: getDb() + setTenantContext (D-D). Admin transitions: getAdminDb()
+// (BYPASSRLS, D-C). requireAdmin gates the admin sub-tree (D-B). NOTE: the admin
+// group is mounted BEFORE the finder group so /admin/* never falls through to it.
+app.use('/api/v1/admin/commissions/*', clerkAuthMiddleware, requireAdmin);
+app.route('/api/v1/admin/commissions', commissionsAdminRouter);
+app.use('/api/v1/commissions/*', clerkAuthMiddleware);
+app.route('/api/v1/commissions', commissionsRouter);
+
+// ── Payouts (Phase 05 T08, D-Q) ──────────────────────────────────────────────
+app.use('/api/v1/admin/payouts/*', clerkAuthMiddleware, requireAdmin);
+app.route('/api/v1/admin/payouts', payoutsAdminRouter);
+app.use('/api/v1/payouts/*', clerkAuthMiddleware);
+app.route('/api/v1/payouts', payoutsRouter);
+
+// ── Audit log viewer (Phase 05 T12) ──────────────────────────────────────────
+app.use('/api/v1/admin/audit/*', clerkAuthMiddleware, requireAdmin);
+app.route('/api/v1/admin/audit', auditRouter);
+
+// Manual hold-promotion trigger (Phase 05 T09, D-K) lives ON the commissionsAdminRouter
+// as POST /promote-locked → resolves to POST /api/v1/admin/commissions/promote-locked
+// (requireAdmin already applied to /api/v1/admin/commissions/* above).
+
+// Finder-authed link generation (Phase 04, T05).
 app.use('/api/v1/links/*', clerkAuthMiddleware);
 app.route('/api/v1/links', linksRouter);
 
-// Finder-authed catalog + clicks reads (Phase 04, T05). FIRST-CLASS finder
-// routes — NOT admin-route reuse (admin routes are requireAdmin-gated).
+// Finder-authed catalog + clicks reads (Phase 04, T05).
 app.use('/api/v1/finder/*', clerkAuthMiddleware);
 app.route('/api/v1/finder', finderRouter);
 
@@ -48,6 +92,9 @@ app.get('/', (c) =>
 );
 
 app.notFound((c) => c.json({ error: 'not_found', path: c.req.path }, 404));
+
+// Nightly hold-promotion cron (Phase 05 T09, D-K/D1). Single scheduler instance.
+setupNightlyJob();
 
 const port = env.PORT;
 console.log(`[fxl-finders-api] listening on http://localhost:${port} (${env.NODE_ENV})`);

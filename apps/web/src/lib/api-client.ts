@@ -237,3 +237,107 @@ export const finderClicksApi = {
   getStats: (token: string) =>
     apiFetch<ClickStats>('/api/v1/finder/clicks/stats', { method: 'GET', token }),
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 05 — admin reconciliation reads (conversions, commissions, audit). All via
+// apiFetch + Clerk token (D-J). Responses carry resolved display names (no raw UUIDs).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type CommissionStatus = 'pending' | 'approved' | 'locked' | 'paid' | 'reversed';
+
+export type AdminConversionRow = {
+  id: string;
+  source: string;
+  externalOrderId: string;
+  eventType: string;
+  finderId: string;
+  finderDisplayName: string | null;
+  sellerId: string | null;
+  sellerDisplayName: string | null;
+  productId: string;
+  realizedSetupBrl: number;
+  realizedMonthlyBrl: number;
+  closedAt: string;
+  createdAt: string;
+};
+
+export type AdminCommissionRow = {
+  id: string;
+  finderId: string;
+  productId: string;
+  kind: 'setup' | 'recurring';
+  basisBrl: number;
+  ratePct: string;
+  amountBrl: number;
+  status: CommissionStatus;
+  holdUntil: string;
+  createdAt: string;
+};
+
+export type AuditLogEntry = {
+  id: string;
+  ts: string;
+  actorUserId: string;
+  actorOrgId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  requestId: string | null;
+};
+
+export const adminConversionsApi = {
+  list: (params: { source?: string; finderId?: string } | undefined, token: string) => {
+    const qs = new URLSearchParams();
+    if (params?.source) qs.set('source', params.source);
+    if (params?.finderId) qs.set('finderId', params.finderId);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return apiFetch<{ conversions: AdminConversionRow[] }>(`/api/v1/admin/conversions${suffix}`, {
+      method: 'GET',
+      token,
+    });
+  },
+};
+
+export const adminCommissionsApi = {
+  list: (params: { status?: CommissionStatus; finderId?: string } | undefined, token: string) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.finderId) qs.set('finderId', params.finderId);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return apiFetch<{ commissions: AdminCommissionRow[] }>(`/api/v1/admin/commissions${suffix}`, {
+      method: 'GET',
+      token,
+    });
+  },
+  lock: (commissionId: string, token: string) =>
+    apiFetch<{ commission: AdminCommissionRow }>(
+      `/api/v1/admin/commissions/${commissionId}/lock`,
+      { method: 'POST', token },
+    ),
+  reverse: (commissionId: string, reason: string, token: string) =>
+    apiFetch<{ reversed: boolean }>(`/api/v1/admin/commissions/${commissionId}/reverse`, {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ reason }),
+    }),
+};
+
+export const adminAuditApi = {
+  list: (params: { page?: number; action?: string } | undefined, token: string) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.action) qs.set('action', params.action);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return apiFetch<{
+      entries: AuditLogEntry[];
+      total: number;
+      page: number;
+      page_chain_valid: boolean;
+    }>(`/api/v1/admin/audit${suffix}`, { method: 'GET', token });
+  },
+  verifyChain: (token: string) =>
+    apiFetch<{ chain_valid: boolean; broken_at: number | null; total: number }>(
+      '/api/v1/admin/audit/verify-chain',
+      { method: 'GET', token },
+    ),
+};

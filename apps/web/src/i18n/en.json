@@ -128,7 +128,9 @@
     "save": "Save",
     "saving": "Saving...",
     "cancel": "Cancel",
-    "edit": "Edit"
+    "edit": "Edit",
+    "previous": "Previous",
+    "next": "Next"
   },
   "admin": {
     "title": "Administration",
@@ -138,7 +140,9 @@
       "finders": "Finders",
       "sellers": "Sellers",
       "payouts": "Payouts",
-      "audit": "Audit"
+      "audit": "Audit",
+      "conversions": "Conversions",
+      "commissions": "Commissions"
     },
     "finders": {
       "title": "Finders",
@@ -283,6 +287,81 @@
         "basisList": "List net",
         "saved": "Saved!",
         "error": "Could not save the commission rule."
+      }
+    },
+    "conversions": {
+      "title": "Conversions",
+      "empty": "No conversions recorded",
+      "kpi": {
+        "total": "Conversions",
+        "setupTotal": "Setup Total",
+        "recurringTotal": "Recurring Total"
+      },
+      "columns": {
+        "source": "Source",
+        "orderId": "Order",
+        "finder": "Finder",
+        "seller": "Seller",
+        "product": "Product",
+        "setup": "Setup",
+        "monthly": "Monthly",
+        "closedAt": "Date",
+        "status": "Status"
+      }
+    },
+    "commissions": {
+      "title": "Commissions",
+      "empty": "No commissions recorded",
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "locked": "Locked",
+        "paid": "Paid",
+        "reversed": "Reversed"
+      },
+      "kind": {
+        "setup": "Setup",
+        "recurring": "Recurring"
+      },
+      "actions": {
+        "lock": "Approve / release now",
+        "reverse": "Reverse",
+        "reverseConfirm": "Confirm Reversal",
+        "reverseReason": "Reversal reason"
+      },
+      "kpi": {
+        "total": "Commissions",
+        "pending": "Pending",
+        "toLock": "To Pay"
+      },
+      "columns": {
+        "kind": "Type",
+        "basis": "Basis",
+        "rate": "Rate",
+        "amount": "Amount",
+        "status": "Status",
+        "holdUntil": "Release",
+        "actions": "Actions"
+      }
+    },
+    "audit": {
+      "title": "Audit Ledger",
+      "empty": "No audit entries",
+      "pageValid": "Page intact",
+      "pageBroken": "Page compromised",
+      "chainValid": "Chain intact",
+      "chainBroken": "Chain compromised — break at",
+      "verifyFullChain": "Verify full chain",
+      "systemActor": "system",
+      "pageN": "Page {{n}}",
+      "columns": {
+        "ts": "Timestamp",
+        "actor": "Actor",
+        "action": "Action",
+        "entity": "Entity",
+        "entityId": "ID",
+        "requestId": "Request",
+        "chain": "Chain"
       }
     }
   }

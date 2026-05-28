@@ -308,3 +308,121 @@ export const clicks = pgTable(
     index('clicks_finder_id_created_at_idx').on(t.finderId, t.createdAt),
   ],
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// conversions — tenant-scoped by org_id (split-RLS, D10). Phase 05 OWNS this.
+// INSERT happens on the HMAC webhook path with NO tenant context (split RLS:
+// conversions_insert_webhook WITH CHECK(true)); SELECT is org-scoped for finders;
+// admin reads bypass RLS via getAdminDb() (D-C). Money = integer cents.
+// ─────────────────────────────────────────────────────────────────────────────
+export const conversions = pgTable(
+  'conversions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    source: text('source').notNull(), // app.slug; e.g. 'fxl-financiero' (D-A)
+    externalOrderId: text('external_order_id').notNull(),
+    eventType: text('event_type').notNull().default('sale'), // 'sale' | 'refund'
+    // sha256(source + external_order_id + event_type) (D11/D-N). UNIQUE = race guard.
+    idempotencyKey: text('idempotency_key').notNull().unique(),
+    orgId: text('org_id').notNull(), // denormalized from finders.org_id for RLS (D10)
+    linkId: uuid('link_id').references(() => referralLinks.id),
+    clickId: text('click_id'), // last-touch ULID (nullable — finder_code fallback path)
+    finderId: uuid('finder_id')
+      .notNull()
+      .references(() => finders.id),
+    sellerId: uuid('seller_id').references(() => sellers.id),
+    appId: uuid('app_id')
+      .notNull()
+      .references(() => apps.id),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id),
+    quotedSetupBrl: integer('quoted_setup_brl').notNull(), // cents — snapshot from referral_links
+    quotedMonthlyBrl: integer('quoted_monthly_brl').notNull(), // cents
+    realizedSetupBrl: integer('realized_setup_brl').notNull(), // cents — actual amount charged
+    realizedMonthlyBrl: integer('realized_monthly_brl').notNull(), // cents
+    customerEmailHash: text('customer_email_hash'), // sha256(email + finder.org_id)
+    customerOrgId: text('customer_org_id'), // Clerk org_id in the sibling app
+    holdUntil: timestamp('hold_until', { withTimezone: true }).notNull(),
+    closedAt: timestamp('closed_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('conversions_source_order_event_idx').on(
+      t.source,
+      t.externalOrderId,
+      t.eventType,
+    ),
+    // DESC direction applied in the journaled migration (drizzle-kit emits ASC).
+    index('conversions_finder_id_created_at_idx').on(t.finderId, t.createdAt),
+    index('conversions_org_id_idx').on(t.orgId),
+  ],
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// commissions — tenant-scoped by org_id (split-RLS, D10). Phase 05 OWNS this.
+// INSERT on webhook path (commissions_insert_webhook WITH CHECK(true)); SELECT
+// org-scoped for finders; admin state transitions (lock/reverse/promote) run on
+// getAdminDb() BYPASSRLS (D-C) — the app role has NO UPDATE policy/grant.
+// amount_brl = integer cents; rate_pct = numeric(5,2) (rates are not money).
+// ─────────────────────────────────────────────────────────────────────────────
+export const commissions = pgTable(
+  'commissions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversionId: uuid('conversion_id')
+      .notNull()
+      .references(() => conversions.id),
+    orgId: text('org_id').notNull(), // denormalized from conversions.org_id for RLS (D10)
+    finderId: uuid('finder_id')
+      .notNull()
+      .references(() => finders.id),
+    appId: uuid('app_id')
+      .notNull()
+      .references(() => apps.id),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id),
+    kind: text('kind').notNull(), // 'setup' | 'recurring'
+    basisBrl: integer('basis_brl').notNull(), // realized_*_brl the commission was calculated against
+    ratePct: numeric('rate_pct', { precision: 5, scale: 2 }).notNull(), // snapshot from commission_rules
+    amountBrl: integer('amount_brl').notNull(), // floor(basis_brl * rate_pct / 100) — int cents
+    status: text('status').notNull().default('pending'), // 'pending'|'approved'|'locked'|'paid'|'reversed'
+    holdUntil: timestamp('hold_until', { withTimezone: true }).notNull(),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    approvedByUserId: text('approved_by_user_id'),
+    lockedAt: timestamp('locked_at', { withTimezone: true }),
+    paidAt: timestamp('paid_at', { withTimezone: true }),
+    paidPayoutId: uuid('paid_payout_id'), // FK -> payouts(id), hard FK added in migration (circular)
+    reversedAt: timestamp('reversed_at', { withTimezone: true }),
+    reversedReason: text('reversed_reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('commissions_finder_id_status_idx').on(t.finderId, t.status),
+    index('commissions_status_hold_until_idx').on(t.status, t.holdUntil), // nightly promotion query
+  ],
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// payouts — admin-managed cross-tenant (NO RLS, like apps/products). Phase 05
+// OWNS this single table (D-Q). commissions.paid_payout_id references it. Admin
+// reads/writes via getAdminDb() (BYPASSRLS, D-C); finder reads own via join.
+// ─────────────────────────────────────────────────────────────────────────────
+export const payouts = pgTable('payouts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  finderId: uuid('finder_id')
+    .notNull()
+    .references(() => finders.id),
+  totalBrl: integer('total_brl').notNull(), // cents
+  status: text('status').notNull().default('draft'), // 'draft'|'exported'|'paid'|'voided'
+  csvExportId: uuid('csv_export_id'),
+  exportedAt: timestamp('exported_at', { withTimezone: true }),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+  paidByUserId: text('paid_by_user_id'),
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }),
+});
