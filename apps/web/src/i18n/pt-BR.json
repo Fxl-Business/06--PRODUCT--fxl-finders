@@ -18,6 +18,120 @@
   "common": {
     "loading": "Carregando...",
     "error": "Algo deu errado",
-    "retry": "Tentar novamente"
+    "retry": "Tentar novamente",
+    "save": "Salvar",
+    "saving": "Salvando...",
+    "cancel": "Cancelar",
+    "edit": "Editar"
+  },
+  "admin": {
+    "title": "Administração",
+    "nav": {
+      "apps": "Apps",
+      "products": "Produtos",
+      "finders": "Finders",
+      "payouts": "Pagamentos",
+      "audit": "Auditoria"
+    },
+    "status": {
+      "active": "Ativo",
+      "disabled": "Desativado",
+      "archived": "Arquivado"
+    },
+    "apps": {
+      "heading": "Apps",
+      "create": "Criar app",
+      "empty": "Nenhum app cadastrado",
+      "emptyDesc": "Crie o primeiro app para gerar chaves de integração.",
+      "createTitle": "Criar app",
+      "editTitle": "Editar app",
+      "dialogDesc": "Configure o app e suas opções de atribuição.",
+      "saveError": "Não foi possível salvar o app.",
+      "disable": "Desativar",
+      "enable": "Ativar",
+      "rotateSecret": "Rotacionar chave secreta",
+      "rotateWebhook": "Rotacionar webhook secret",
+      "col": {
+        "name": "Nome",
+        "slug": "Slug",
+        "publishableKey": "Chave publicável",
+        "secretKey": "Chave secreta",
+        "status": "Status",
+        "actions": "Ações"
+      },
+      "field": {
+        "slug": "Slug",
+        "name": "Nome",
+        "hosts": "Hosts de redirecionamento permitidos",
+        "hostsHelp": "Um host por linha, sem https:// nem caminho (ex.: checkout.fxlfinanciero.com.br).",
+        "attributionWindowDays": "Janela de atribuição (dias)",
+        "commissionHoldDays": "Retenção de comissão (dias)"
+      },
+      "keyReveal": {
+        "title": "Rotacionar chave",
+        "warnSecret": "Você está prestes a rotacionar a chave secreta. A chave atual será invalidada imediatamente. Tem certeza?",
+        "warnWebhook": "Você está prestes a rotacionar o webhook secret. O valor atual será invalidado imediatamente. Tem certeza?",
+        "confirmRotate": "Rotacionar",
+        "warning": "Esta chave não será exibida novamente. Copie agora.",
+        "copy": "Copiar",
+        "copied": "Copiado!",
+        "close": "Fechar",
+        "back": "Voltar",
+        "closeAnyway": "Sim, fechei",
+        "notCopiedWarning": "Você copiou a chave?",
+        "rotateError": "Não foi possível rotacionar a chave."
+      }
+    },
+    "products": {
+      "heading": "Produtos",
+      "create": "Criar produto",
+      "manage": "Gerenciar",
+      "empty": "Nenhum produto cadastrado",
+      "emptyDesc": "Crie um produto para configurar faixas de preço e comissão.",
+      "createTitle": "Criar produto",
+      "editTitle": "Editar produto",
+      "saveError": "Não foi possível salvar o produto.",
+      "notFound": "Produto não encontrado.",
+      "col": {
+        "name": "Nome",
+        "slug": "Slug",
+        "app": "App",
+        "status": "Status",
+        "actions": "Ações"
+      },
+      "field": {
+        "app": "App",
+        "appPlaceholder": "Selecione um app",
+        "slug": "Slug",
+        "name": "Nome",
+        "description": "Descrição",
+        "status": "Status"
+      },
+      "tabs": {
+        "priceBands": "Faixas de Preço",
+        "commission": "Comissão"
+      },
+      "priceBand": {
+        "setup": "Setup",
+        "monthly": "Mensal",
+        "min": "Mínimo (R$)",
+        "list": "Tabela (R$)",
+        "max": "Máximo (R$)",
+        "saved": "Salvo!",
+        "invalidOrder": "Mínimo <= Tabela <= Máximo é obrigatório.",
+        "error": "Não foi possível salvar a faixa de preço."
+      },
+      "commission": {
+        "title": "Regra de comissão",
+        "setupRate": "Taxa de setup (%)",
+        "recurringRate": "Taxa recorrente (%)",
+        "recurringMonths": "Meses recorrentes",
+        "basis": "Base de cálculo",
+        "basisQuoted": "Líquido cotado",
+        "basisList": "Líquido tabela",
+        "saved": "Salvo!",
+        "error": "Não foi possível salvar a regra de comissão."
+      }
+    }
   }
 }

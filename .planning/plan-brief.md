@@ -221,6 +221,24 @@ Attribution: resolve link by click_id within window; else resolve finder by `fin
 - NITs to fold (cheap): org_id indexes on finders/leads (01); `UpdateAppSchema = CreateAppSchema.omit({slug:true}).partial()` (02); api-client port 3006 (02); remove stray `'use client'` from RoleGuard code fence (03); fix T03 `</read_first>` tag (06); audit badge label "Página íntegra" or full-chain endpoint (05).
 - DEFER (note only, no v1.0 code): /signup rate-limit → v1.1; rotateSecret audit rows → with Phase 05 hash-chain; resolveActors/userLabel shared helper → accept per-endpoint display_name fields for v1.0.
 
+## Wave 1 execution outcomes (Phase 01 — committed 46c05dc)
+
+- 9 foundation tables shipped; single migration `0000_fancy_klaw` with role grants + RLS policies APPENDED into the journaled file (D-F). `apps/api/drizzle/meta/` un-ignored so the journal commits.
+- 3 DB roles: `fxl_finders_owner` (migrations), `fxl_finders_app` (runtime, no BYPASSRLS), `fxl_finders_admin` (BYPASSRLS). `MIGRATE_DATABASE_URL` added to `scripts/migrate.ts` (first migrate creates roles/policies as superuser); runtime `DATABASE_URL` targets the app role.
+- Exports now LIVE (Phases 02-06 consume these — do NOT recreate):
+  - `apps/api/src/middleware/auth.ts`: `clerkAuthMiddleware` (+ `authMiddleware` alias). Hono `ContextVariableMap` augmented: `userId`, `orgId`, `userRole` (from `payload.publicMetadata?.role`).
+  - `apps/api/src/middleware/require-admin.ts`: `requireAdmin` (reads `c.get('userRole')==='admin'`, zero network calls). **Phase 01 OWNS it — 02/03/05/06 just import it.**
+  - `apps/api/src/db/client.ts`: `getDb()` (lazy, runtime app role) + `getAdminDb()` (BYPASSRLS admin conn via `ADMIN_DATABASE_URL`). No `db` singleton, no `db/index.ts`.
+  - `apps/api/src/lib/clerk.ts`: `clerkClient = createClerkClient({ secretKey: env.CLERK_SECRET_KEY })`.
+  - `setTenantContext(tx, orgId)` — takes a TX HANDLE; call inside `db.transaction(async (tx) => { await setTenantContext(tx, orgId); ... })`.
+- Test infra: vitest is **v2.1.9** (NO `test.projects` — that's v3). Split unit vs integration via a `VITEST_INTEGRATION` env flag in one `vitest.config.ts`. `globalSetup` migrates the test DB. RLS integration tests connect as `fxl_finders_app`. `passWithNoTests` is on. (Phases 02-06: follow this v2 pattern, don't use `test.projects`.)
+- Clerk session-token custom claim `{ "publicMetadata": "{{user.public_metadata}}" }` is a dashboard/handoff prerequisite (doc'd in `docs/nexo/decisions/phase01-clerk-config.md`) — without it `userRole` is undefined and admin gates 403. Not a code gap.
+- Fixed pre-existing template defect: `apps/api/eslint.config.js` missing `@eslint/js` + `typescript-eslint` devDeps (lint never ran) — added.
+
+## Wave 2 execution note (Phases 02 + 03)
+
+02 and 03 OVERLAP on `apps/api/src/server.ts` (router mounts) + `apps/web` (shadcn installs, router.tsx, i18n json) → run SEQUENTIALLY (02 then 03), not parallel, per auto-run "otherwise sequential" rule. The auth.ts / require-admin.ts coordination hazard the review flagged is GONE (Phase 01 owns both). 02 DELETES any adminAuth.ts/isAdmin and consumes `requireAdmin`.
+
 **Sub-agent context-source order (use this exact prefix in every dispatched agent prompt):**
 ```
 CONTEXT SOURCES (read these first, do NOT re-scan source files unless the task explicitly requires it):

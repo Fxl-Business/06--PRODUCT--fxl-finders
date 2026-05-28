@@ -18,6 +18,120 @@
   "common": {
     "loading": "Loading...",
     "error": "Something went wrong",
-    "retry": "Try again"
+    "retry": "Try again",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "edit": "Edit"
+  },
+  "admin": {
+    "title": "Administration",
+    "nav": {
+      "apps": "Apps",
+      "products": "Products",
+      "finders": "Finders",
+      "payouts": "Payouts",
+      "audit": "Audit"
+    },
+    "status": {
+      "active": "Active",
+      "disabled": "Disabled",
+      "archived": "Archived"
+    },
+    "apps": {
+      "heading": "Apps",
+      "create": "Create app",
+      "empty": "No apps yet",
+      "emptyDesc": "Create your first app to generate integration keys.",
+      "createTitle": "Create app",
+      "editTitle": "Edit app",
+      "dialogDesc": "Configure the app and its attribution options.",
+      "saveError": "Could not save the app.",
+      "disable": "Disable",
+      "enable": "Enable",
+      "rotateSecret": "Rotate secret key",
+      "rotateWebhook": "Rotate webhook secret",
+      "col": {
+        "name": "Name",
+        "slug": "Slug",
+        "publishableKey": "Publishable key",
+        "secretKey": "Secret key",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "field": {
+        "slug": "Slug",
+        "name": "Name",
+        "hosts": "Allowed redirect hosts",
+        "hostsHelp": "One host per line, no https:// or path (e.g. checkout.fxlfinanciero.com.br).",
+        "attributionWindowDays": "Attribution window (days)",
+        "commissionHoldDays": "Commission hold (days)"
+      },
+      "keyReveal": {
+        "title": "Rotate key",
+        "warnSecret": "You are about to rotate the secret key. The current key will be invalidated immediately. Are you sure?",
+        "warnWebhook": "You are about to rotate the webhook secret. The current value will be invalidated immediately. Are you sure?",
+        "confirmRotate": "Rotate",
+        "warning": "This key will never be shown again. Copy it now.",
+        "copy": "Copy",
+        "copied": "Copied!",
+        "close": "Close",
+        "back": "Back",
+        "closeAnyway": "Yes, I'm done",
+        "notCopiedWarning": "Did you copy the key?",
+        "rotateError": "Could not rotate the key."
+      }
+    },
+    "products": {
+      "heading": "Products",
+      "create": "Create product",
+      "manage": "Manage",
+      "empty": "No products yet",
+      "emptyDesc": "Create a product to configure price bands and commission.",
+      "createTitle": "Create product",
+      "editTitle": "Edit product",
+      "saveError": "Could not save the product.",
+      "notFound": "Product not found.",
+      "col": {
+        "name": "Name",
+        "slug": "Slug",
+        "app": "App",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "field": {
+        "app": "App",
+        "appPlaceholder": "Select an app",
+        "slug": "Slug",
+        "name": "Name",
+        "description": "Description",
+        "status": "Status"
+      },
+      "tabs": {
+        "priceBands": "Price Bands",
+        "commission": "Commission"
+      },
+      "priceBand": {
+        "setup": "Setup",
+        "monthly": "Monthly",
+        "min": "Min (R$)",
+        "list": "List (R$)",
+        "max": "Max (R$)",
+        "saved": "Saved!",
+        "invalidOrder": "Min <= List <= Max is required.",
+        "error": "Could not save the price band."
+      },
+      "commission": {
+        "title": "Commission rule",
+        "setupRate": "Setup rate (%)",
+        "recurringRate": "Recurring rate (%)",
+        "recurringMonths": "Recurring months",
+        "basis": "Calculation basis",
+        "basisQuoted": "Quoted net",
+        "basisList": "List net",
+        "saved": "Saved!",
+        "error": "Could not save the commission rule."
+      }
+    }
   }
 }

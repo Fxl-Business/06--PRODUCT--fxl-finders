@@ -1,7 +1,7 @@
 # State
 
 **Active milestone:** v1.0 — FXL Finders MVP (started 2026-05-28)
-**Active phase:** Phase 01 ✅ EXECUTED + verified + reviewed (2026-05-28). Phases 02 + 03 now unblocked (parallelizable).
+**Active phase:** Phase 02 ✅ EXECUTED + verified + reviewed (2026-05-28). Phase 03 unblocked; Phase 04 unblocked (apps/products/price_bands admin now exists).
 **Workflow:** /nexo:add-feature with /nexo:autopilot active (single human gate at Phase 0 spec approval was skipped per autopilot rule 4 — choices logged inline in spec § 2)
 **Token tier:** Tier 2 (6 phases)
 
@@ -15,6 +15,14 @@
 - Gates: `pnpm -r type-check` 0 · api lint 0 · unit 0 (passWithNoTests) · RLS integration **4/4 pass** as `fxl_finders_app`. `pg_policies` confirms both `*_tenant_isolation` policies; RLS fails closed (0 rows with no context).
 - verify-work → 01-UAT.md = PASS (19/19). code-review → 01-REVIEW.md = PASS (0 Critical / 0 Warning / 2 Info downstream notes).
 - Deviations (in 01-SUMMARY.md): vitest v2 env-flag split instead of `test.projects` (v3 API); `passWithNoTests`; fixed pre-existing missing eslint devDeps (`@eslint/js`, `typescript-eslint`); added `MIGRATE_DATABASE_URL` to migrate script for role-creating first migrate.
+
+## Phase 02 — Apps + products + price bands admin (2026-05-28)
+
+- Executed all 9 tasks (T01–T09). Admin domain shipped: `apps/api/src/domains/admin/{index,apps/*,products/*}`. ONE admin mechanism — consumes Phase 01 `requireAdmin` + `clerkAuthMiddleware` (D-B); NO adminAuth.ts, NO `users.getUser` in request path. Admin tables (apps/products/price_bands/commission_rules) use `getAdminDb()` (BYPASSRLS), NO `setTenantContext` (D-C/02). Frontend admin UI: AdminShell/Nav/Guard, Apps + Products pages, dialogs, reveal-once KeyRevealModal; all calls via `apiFetch` + Clerk `getToken()`, api-client port 3000→3006 (D-J).
+- Key gen (TDD): pk_ plaintext, sk_ SHA-256 hash + masked prefix, whs_ plaintext. Price-band min<=list<=max boundary tests + slug-immutability (`UpdateAppSchema = CreateAppSchema.omit({slug}).partial()`) + hostname (bare, not `.url()`) tests. 21 unit tests pass.
+- Gates: `pnpm -r type-check` 0 (5/5) · api lint 0 · web lint 0 (6 pre-existing react-refresh warns) · api unit 21/21 · perf:audit ok. All 6 LOCKED grep gates pass (0 real matches). Live integration smoke vs Postgres:5006 (createApp/rotate/upsert/audit/JOIN) green.
+- verify-work → 02-UAT.md = PASS. code-review → 02-REVIEW.md = PASS (1 Critical found+fixed: list/get/create leaked `webhook_signing_secret` + `secret_key_hash` → added `PublicAppRow`/`toPublicApp` projection; verified no leak).
+- Deviations: UI-SPEC produced inline (autopilot, no pause); no toast lib (dialog-close + invalidation + inline "Saved!"); refactored 3 dialogs to keyed-remount (no reset effect) for `react-hooks/set-state-in-effect`; fixed pre-existing apps/web eslint missing devDeps (`@eslint/js`, `typescript-eslint`).
 
 ## Phase 2.5 — Adversarial pre-execution plan review (2026-05-28)
 

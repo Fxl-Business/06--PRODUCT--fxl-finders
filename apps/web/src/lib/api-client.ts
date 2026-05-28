@@ -8,7 +8,7 @@
  * In the template, no pages call this — left here as the canonical helper to extend.
  */
 
-const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3006';
 
 export type ApiError = {
   error: string;
@@ -42,3 +42,98 @@ export async function apiFetch<T>(
 
   return res.json() as Promise<T>;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin API clients (Phase 02, D-J). Every call goes through apiFetch (NEVER a
+// bare relative fetch, NEVER apiClient.get). Each call takes a Clerk token the
+// hook resolved via useAuth().getToken().
+// ─────────────────────────────────────────────────────────────────────────────
+
+import type {
+  AppRow,
+  CommissionRule,
+  CreateAppBody,
+  CreateProductBody,
+  PriceBand,
+  PriceBandComponent,
+  ProductListRow,
+  ProductRow,
+  UpdateAppBody,
+  UpdateProductBody,
+  UpsertCommissionRuleBody,
+  UpsertPriceBandBody,
+} from '@/admin/types';
+
+export const adminAppsApi = {
+  list: (token: string) => apiFetch<{ apps: AppRow[] }>('/api/v1/admin/apps', { method: 'GET', token }),
+  get: (id: string, token: string) =>
+    apiFetch<{ app: AppRow }>(`/api/v1/admin/apps/${id}`, { method: 'GET', token }),
+  create: (data: CreateAppBody, token: string) =>
+    apiFetch<{ app: AppRow; secretKeyPlaintext: string; webhookSigningSecretPlaintext: string }>(
+      '/api/v1/admin/apps',
+      { method: 'POST', token, body: JSON.stringify(data) },
+    ),
+  update: (id: string, data: UpdateAppBody, token: string) =>
+    apiFetch<{ app: AppRow }>(`/api/v1/admin/apps/${id}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(data),
+    }),
+  setStatus: (id: string, status: 'active' | 'disabled', token: string) =>
+    apiFetch<{ app: AppRow }>(`/api/v1/admin/apps/${id}/status`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ status }),
+    }),
+  rotateSecretKey: (id: string, token: string) =>
+    apiFetch<{ secretKeyPlaintext: string }>(`/api/v1/admin/apps/${id}/rotate-secret-key`, {
+      method: 'POST',
+      token,
+    }),
+  rotateWebhookSecret: (id: string, token: string) =>
+    apiFetch<{ webhookSigningSecretPlaintext: string }>(
+      `/api/v1/admin/apps/${id}/rotate-webhook-secret`,
+      { method: 'POST', token },
+    ),
+};
+
+export const adminProductsApi = {
+  list: (appId: string | undefined, token: string) =>
+    apiFetch<{ products: ProductListRow[] }>(
+      `/api/v1/admin/products${appId ? `?appId=${appId}` : ''}`,
+      { method: 'GET', token },
+    ),
+  get: (id: string, token: string) =>
+    apiFetch<{ product: ProductRow; priceBands: PriceBand[]; commissionRule?: CommissionRule }>(
+      `/api/v1/admin/products/${id}`,
+      { method: 'GET', token },
+    ),
+  create: (data: CreateProductBody, token: string) =>
+    apiFetch<{ product: ProductRow }>('/api/v1/admin/products', {
+      method: 'POST',
+      token,
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: UpdateProductBody, token: string) =>
+    apiFetch<{ product: ProductRow }>(`/api/v1/admin/products/${id}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(data),
+    }),
+  upsertPriceBand: (
+    id: string,
+    component: PriceBandComponent,
+    data: UpsertPriceBandBody,
+    token: string,
+  ) =>
+    apiFetch<{ priceBand: PriceBand }>(`/api/v1/admin/products/${id}/price-bands/${component}`, {
+      method: 'PUT',
+      token,
+      body: JSON.stringify(data),
+    }),
+  upsertCommissionRule: (id: string, data: UpsertCommissionRuleBody, token: string) =>
+    apiFetch<{ commissionRule: CommissionRule }>(
+      `/api/v1/admin/products/${id}/commission-rule`,
+      { method: 'PUT', token, body: JSON.stringify(data) },
+    ),
+};

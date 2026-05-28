@@ -1,0 +1,25 @@
+import { Hono } from 'hono';
+import { clerkAuthMiddleware } from '../../middleware/auth.js';
+import { requireAdmin } from '../../middleware/require-admin.js';
+import { adminAppsRouter } from './apps/routes.js';
+import { adminProductsRouter } from './products/routes.js';
+
+/**
+ * Admin router mount point (Phase 02, T02).
+ *
+ * Admin auth is ONE mechanism (D-B):
+ *   1. clerkAuthMiddleware verifies the JWT and sets c.get('userRole') from the
+ *      verified publicMetadata.role claim — NO clerkClient.users.getUser() call.
+ *   2. requireAdmin (Phase 01-owned, shared) reads c.get('userRole') === 'admin'.
+ * There is NO adminAuth.ts / adminAuthMiddleware / isAdmin var.
+ *
+ * Admin tables (apps/products/price_bands/commission_rules) have NO RLS — the
+ * sub-routers use getAdminDb() and NEVER call setTenantContext.
+ */
+export const adminRouter = new Hono();
+
+adminRouter.use('*', clerkAuthMiddleware);
+adminRouter.use('*', requireAdmin);
+
+adminRouter.route('/apps', adminAppsRouter);
+adminRouter.route('/products', adminProductsRouter);
