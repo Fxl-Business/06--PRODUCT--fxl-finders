@@ -13,15 +13,21 @@
     "./theme": {
       "types": "./dist/theme.d.ts",
       "import": "./dist/theme.js"
+    },
+    "./hmac": {
+      "types": "./dist/hmac.d.ts",
+      "import": "./dist/hmac.js"
     }
   },
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
     "lint": "echo 'no lint for shared-utils'",
-    "test": "echo 'no tests yet'"
+    "test": "vitest run"
   },
   "devDependencies": {
-    "typescript": "^5.7.3"
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.9"
   }
 }

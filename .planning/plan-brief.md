@@ -239,6 +239,15 @@ Attribution: resolve link by click_id within window; else resolve finder by `fin
 
 02 and 03 OVERLAP on `apps/api/src/server.ts` (router mounts) + `apps/web` (shadcn installs, router.tsx, i18n json) → run SEQUENTIALLY (02 then 03), not parallel, per auto-run "otherwise sequential" rule. The auth.ts / require-admin.ts coordination hazard the review flagged is GONE (Phase 01 owns both). 02 DELETES any adminAuth.ts/isAdmin and consumes `requireAdmin`.
 
+## Wave 2 execution outcomes (Phases 02 → 26063ea, 03 → 68912b4)
+
+Phase 02: 9/9, verify PASS, code-review fixed 1 Critical (apps list/get/create leaked `webhook_signing_secret`+`secret_key_hash` over the wire → now a `toPublicApp()` projection; plaintext secrets ONLY via reveal-once create/rotate). 21 unit tests. api-client.ts default port fixed →3006. No toast lib → dialog-close + invalidation + inline "Saved!". Dialogs use keyed-remount (not reset-via-effect) for the newer eslint rule.
+Phase 03: 14/14, verify PASS (26/26), 0 Critical. 28 API + 8 web tests.
+- **DEVIATION (carry forward): `finders.clerk_user_id`, `finders.clerk_org_id`, `sellers.clerk_user_id` are NULLABLE** (insert `NULL`, not `''`) — the `''` placeholder collided with the UNIQUE constraint on the 2nd pending row. Phase 04 `resolveFinderId(clerkUserId)` resolves approved finders by their non-null `clerk_user_id`; a pending finder (null clerk_user_id) has no portal access yet.
+- Public signup + admin approve/suspend writes go via `getAdminDb()` (finders FORCE RLS rejects a getDb() insert with no tenant context).
+- `audit_log.prev_hash`/`entry_hash` written as `''` placeholders until the **Phase 05** hash-chain helper lands. Phase 05 must backfill/define the chain and all phases' audit writes route through the helper from then on.
+- apps/web has shadcn table/dialog/badge/select/tabs + admin shell + finder/seller portal shells + RoleGuard. i18n: every new key in BOTH pt-BR.json + en.json (test enforces key-set equality).
+
 **Sub-agent context-source order (use this exact prefix in every dispatched agent prompt):**
 ```
 CONTEXT SOURCES (read these first, do NOT re-scan source files unless the task explicitly requires it):
@@ -248,3 +257,23 @@ CONTEXT SOURCES (read these first, do NOT re-scan source files unless the task e
 4. ./CLAUDE.md — FXL contract (project instructions)
 Only read source files when the task explicitly requires code-level detail.
 ```
+
+## Wave 3 execution outcomes (Phase 04 — referral links + signed redirect + click telemetry)
+
+10/10 tasks. verify PASS (30/30). code-review PASS (0 Critical, 2 Warnings fixed inline, 2 Info). 95 tests (shared-utils 17 · api unit 47 · api RLS integration 9 · site 14 · web 8). Migration `0003_nostalgic_jubilee` journaled.
+
+**Exports now LIVE (Phase 05/06 consume — do NOT recreate):**
+- `packages/shared-utils/src/hmac.ts` (built to dist; barrel + `./hmac` subpath export): `signHmac`, `verifyHmac` (timingSafeEqual + length guard), `signReferralUrl`, `verifyReferralSig`, `hashIp`, `dailySalt`. **Phase 05 webhook verify imports `verifyHmac` from here.** shared-utils now has its own `@types/node` + `vitest` devDeps and a `vitest.config.ts`; tsconfig excludes `__tests__` from the dist build.
+- `referralLinks` + `clicks` tables in `apps/api/src/db/schema.ts`. Both `org_id text NOT NULL` + FORCE RLS. `clicks` append-only (INSERT+SELECT grant only, no updated_at). `leads.link_id`/`click_id` promoted to hard FKs (ON DELETE SET NULL).
+- RLS policies (in the journaled migration, D-F): `referral_links_tenant_isolation` (ALL), `referral_links_public_lookup` (SELECT USING true — D-E), `clicks_insert_public` (INSERT WITH CHECK true), `clicks_select_tenant` (SELECT org_id). `pg_policies` confirms 4. clicks DESC composite indexes added inline (drizzle emits ASC).
+- `apps/api/src/domains/links/service.ts`: `resolveFinderId(tx, clerkUserId)`, `validatePriceBand`, `buildLinkSignature` (D-P), `buildLinkCode` (ulidx, 10-char), `validateDestinationHost` (EXACT host equality), `createLink`/`listFinderLinks`/`revokeLink`/`getFinderClickStats`/`listFinderClicks` (all tx-scoped + setTenantContext, D-D), `listActiveAppsForFinder`/`listActiveProductsForFinder` (no-RLS catalog reads).
+- `linksRouter` (`/api/v1/links` POST/GET/DELETE) + `finderRouter` (`/api/v1/finder/apps`, `/apps/:id/products`, `/clicks` paginated, `/clicks/stats`). Both mounted under `clerkAuthMiddleware` in `server.ts`. `mapLinkError` shared error→status mapper (finder_not_found→403).
+- `apps/site/src/lib/{db,click-handler,ua-family,rate-limit}.ts` + `apps/site/src/app/r/[code]/route.ts` (Node runtime). Live-verified: valid code → 302 `?ref&fxl_sig` + `fxl_ref` cookie (HttpOnly;Secure;SameSite=Lax;90d); invalid → 410; fxl_sig byte-matches D-P. apps/site gained drizzle-orm/postgres/ulidx/@upstash/* deps + vitest config.
+- `apps/web` finder portal: LinksPage (generator + KPICards) + ClicksPage (table + KPICards, conversion-rate '—' placeholder) + useLinks/useClicks hooks + finder API clients in api-client.ts (all via apiFetch + Clerk token, D-J). FinderShell gains "Cliques" nav. i18n finder.links.*/finder.clicks.*/nav.clicks in BOTH pt-BR + en (key-set equality enforced).
+
+**Deviations (carry forward):**
+1. `setTenantContext(tx, orgId)` param type widened from `Pick<PgTransaction<never,…>>` to the structural `{ execute: (q: SQL) => Promise<unknown> }` — the `never` generic rejected real `getDb().transaction()` tx handles. Phase 05/06 tenant consumers benefit; signature/behavior unchanged.
+2. `apps/site/src/lib/db.ts` declares a FOCUSED subset schema (referral_links/apps/clicks only) — not the full apps/api schema. Read/insert-only projection for the Node-runtime route; source of truth stays apps/api/src/db/schema.ts.
+3. shared-utils `dist` declaration emit was skipped by a stale `composite` tsbuildinfo after `rm -rf dist` — cleared buildinfo before rebuild (build-before-consume: ALWAYS clean buildinfo if .d.ts go missing).
+4. `apps/site/eslint.config.mjs` now ignores auto-generated `next-env.d.ts` (newer Next emits a triple-slash routes.d.ts reference that trips `no-triple-slash-reference`).
+5. Rate limiter DEGRADES GRACEFULLY: no-op when Upstash env absent (RATE_LIMIT_ENABLED=false default) + fails open on Redis error — never crashes the redirect.

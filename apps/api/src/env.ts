@@ -34,6 +34,8 @@ const schema = z.object({
   CLERK_SECRET_KEY: emptyToUndefined,
   CLERK_PUBLISHABLE_KEY: emptyToUndefined,
   SENTRY_DSN: emptyToUndefinedUrl,
+  // Public site origin used to build the referral fullUrl (`/r/<code>`). Phase 04.
+  SITE_URL: emptyToUndefinedUrl,
 });
 
 const parsed = schema.safeParse(process.env);

@@ -29,8 +29,11 @@ const AdminSellersPage = lazy(() =>
 const FinderDashboardPage = lazy(() =>
   import('./finder/dashboard/FinderDashboardPage').then((m) => ({ default: m.FinderDashboardPage })),
 );
-const LinksPlaceholderPage = lazy(() =>
-  import('./finder/links/LinksPlaceholderPage').then((m) => ({ default: m.LinksPlaceholderPage })),
+const LinksPage = lazy(() =>
+  import('./finder/links/LinksPage').then((m) => ({ default: m.LinksPage })),
+);
+const ClicksPage = lazy(() =>
+  import('./finder/clicks/ClicksPage').then((m) => ({ default: m.ClicksPage })),
 );
 const CommissionsPlaceholderPage = lazy(() =>
   import('./finder/commissions/CommissionsPlaceholderPage').then((m) => ({
@@ -101,7 +104,8 @@ const routes: RouteObject[] = [
     children: [
       { index: true, element: <Navigate to="/finder/dashboard" replace /> },
       { path: 'dashboard', element: <FinderDashboardPage /> },
-      { path: 'links', element: <LinksPlaceholderPage /> },
+      { path: 'links', element: <LinksPage /> },
+      { path: 'clicks', element: <ClicksPage /> },
       { path: 'commissions', element: <CommissionsPlaceholderPage /> },
       { path: 'payouts', element: <PayoutsPlaceholderPage /> },
     ],

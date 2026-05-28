@@ -234,3 +234,77 @@ export const leads = pgTable(
     index('leads_org_id_idx').on(t.orgId, t.status),
   ],
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// referral_links — tenant-scoped by org_id (RLS, D11). One per (finder, product,
+// quoted price tuple). Phase 04 OWNS this table. The 10-char `code` is the bearer
+// secret for the public /r/[code] redirect (D-E public-lookup policy).
+// ─────────────────────────────────────────────────────────────────────────────
+export const referralLinks = pgTable(
+  'referral_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(), // denormalized from finders.org_id for RLS (D11)
+    code: text('code').notNull().unique(), // 10-char ULID suffix (D7) — URL-safe bearer
+    finderId: uuid('finder_id')
+      .notNull()
+      .references(() => finders.id),
+    appId: uuid('app_id')
+      .notNull()
+      .references(() => apps.id),
+    productId: uuid('product_id')
+      .notNull()
+      .references(() => products.id),
+    quotedSetupBrl: integer('quoted_setup_brl').notNull(), // cents
+    quotedMonthlyBrl: integer('quoted_monthly_brl').notNull(), // cents
+    // hmac([finderId,productId,quotedSetup,quotedMonthly].join(":"), app.webhook_signing_secret) (D-P)
+    signature: text('signature').notNull(),
+    destinationUrl: text('destination_url').notNull(), // resolved host+path at creation
+    status: text('status').notNull().default('active'), // 'active' | 'revoked'
+    expiresAt: timestamp('expires_at', { withTimezone: true }), // null = never expires
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    revokedReason: text('revoked_reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('referral_links_code_idx').on(t.code),
+    index('referral_links_finder_id_idx').on(t.finderId, t.createdAt),
+  ],
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// clicks — tenant-scoped by org_id (RLS, D10). Append-only (INSERT+SELECT only;
+// no updated_at). INSERT happens on the public /r/[code] path with NO tenant
+// context (split RLS: clicks_insert_public WITH CHECK(true)). Phase 04 OWNS this.
+// ─────────────────────────────────────────────────────────────────────────────
+export const clicks = pgTable(
+  'clicks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    clickId: text('click_id').notNull().unique(), // ULID minted at redirect — opaque attribution ID
+    orgId: text('org_id').notNull(), // denormalized from referral_links.org_id for RLS (D10)
+    linkId: uuid('link_id')
+      .notNull()
+      .references(() => referralLinks.id),
+    finderId: uuid('finder_id').notNull(), // denormalized for fast finder dashboards
+    appId: uuid('app_id').notNull(), // denormalized
+    productId: uuid('product_id').notNull(), // denormalized
+    ipHash: text('ip_hash'), // sha256(ip + daily_salt) first 16 chars (D5)
+    uaFamily: text('ua_family'), // 'chrome'|'safari'|'firefox'|'edge'|'opera'|'bot'|'unknown'
+    referer: text('referer'),
+    utmSource: text('utm_source'),
+    utmMedium: text('utm_medium'),
+    utmCampaign: text('utm_campaign'),
+    country: text('country'), // 2-letter ISO from CF-IPCountry or null
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    // No updated_at — append-only.
+  },
+  (t) => [
+    uniqueIndex('clicks_click_id_idx').on(t.clickId),
+    // DESC direction applied in the journaled migration (drizzle-kit index() builder
+    // does not emit DESC reliably across pg versions — plan-brief failure-list #3 / D2 note).
+    index('clicks_link_id_created_at_idx').on(t.linkId, t.createdAt),
+    index('clicks_finder_id_created_at_idx').on(t.finderId, t.createdAt),
+  ],
+);

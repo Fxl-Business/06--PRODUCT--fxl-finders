@@ -69,6 +69,14 @@ import type {
   UpsertCommissionRuleBody,
   UpsertPriceBandBody,
 } from '@/admin/types';
+import type {
+  ClickRow,
+  ClickStats,
+  CreateLinkBody,
+  FinderApp,
+  FinderProduct,
+  ReferralLink,
+} from '@/finder/types';
 
 export const adminAppsApi = {
   list: (token: string) => apiFetch<{ apps: AppRow[] }>('/api/v1/admin/apps', { method: 'GET', token }),
@@ -181,4 +189,51 @@ export const adminSellersApi = {
       token,
       body: JSON.stringify({ status }),
     }),
+};
+
+// ─── Phase 04: finder links + catalog + clicks (D-J — apiFetch + Clerk token) ──
+// FIRST-CLASS finder-authed endpoints — NOT admin-route reuse (admin routes are
+// requireAdmin-gated; a finder JWT would 403).
+
+export const finderLinksApi = {
+  list: (token: string) =>
+    apiFetch<{ links: ReferralLink[] }>('/api/v1/links', { method: 'GET', token }),
+  create: (data: CreateLinkBody, token: string) =>
+    apiFetch<{ link: ReferralLink; fullUrl: string }>('/api/v1/links', {
+      method: 'POST',
+      token,
+      body: JSON.stringify(data),
+    }),
+  revoke: (linkId: string, reason: string | undefined, token: string) =>
+    apiFetch<null>(`/api/v1/links/${linkId}`, {
+      method: 'DELETE',
+      token,
+      body: JSON.stringify({ reason }),
+    }),
+};
+
+export const finderCatalogApi = {
+  listApps: (token: string) =>
+    apiFetch<{ apps: FinderApp[] }>('/api/v1/finder/apps', { method: 'GET', token }),
+  listProducts: (appId: string, token: string) =>
+    apiFetch<{ products: FinderProduct[] }>(`/api/v1/finder/apps/${appId}/products`, {
+      method: 'GET',
+      token,
+    }),
+};
+
+export const finderClicksApi = {
+  list: (params: { linkId?: string; limit?: number; cursor?: string } | undefined, token: string) => {
+    const qs = new URLSearchParams();
+    if (params?.linkId) qs.set('linkId', params.linkId);
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.cursor) qs.set('cursor', params.cursor);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return apiFetch<{ clicks: ClickRow[]; nextCursor: string | null }>(
+      `/api/v1/finder/clicks${suffix}`,
+      { method: 'GET', token },
+    );
+  },
+  getStats: (token: string) =>
+    apiFetch<ClickStats>('/api/v1/finder/clicks/stats', { method: 'GET', token }),
 };

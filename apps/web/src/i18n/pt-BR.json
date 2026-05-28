@@ -11,7 +11,8 @@
     "links": "Meus Links",
     "commissions": "Comissões",
     "payouts": "Pagamentos",
-    "deals": "Minhas Vendas"
+    "deals": "Minhas Vendas",
+    "clicks": "Cliques"
   },
   "errors": {
     "noRole": {
@@ -31,8 +32,51 @@
       "banner": "Dashboard completo disponível em breve. Seu portal está sendo configurado."
     },
     "links": {
-      "comingSoon": "Meus Links",
-      "comingSoonDesc": "Geração de links disponível na próxima fase."
+      "title": "Meus Links",
+      "generate": "Gerar Link",
+      "justGenerated": "Link gerado com sucesso! Copie e compartilhe:",
+      "empty": "Nenhum link gerado ainda",
+      "emptyDesc": "Gere seu primeiro link de indicação para começar.",
+      "kpi": {
+        "active": "Links ativos",
+        "totalClicks": "Total de cliques",
+        "uniqueClicks": "Cliques únicos"
+      },
+      "form": {
+        "app": "Produto",
+        "appPlaceholder": "Selecione um produto",
+        "product": "Versão",
+        "productPlaceholder": "Selecione uma versão",
+        "setupPrice": "Setup (R$)",
+        "monthlyPrice": "Mensalidade (R$)",
+        "bandHint": "Entre R$ {{min}} e R$ {{max}}",
+        "submit": "Gerar Link",
+        "submitting": "Gerando..."
+      },
+      "card": {
+        "code": "Código",
+        "url": "URL",
+        "copy": "Copiar",
+        "copied": "Copiado!",
+        "revoke": "Revogar",
+        "revokeConfirm": "Tem certeza que deseja revogar este link? Esta ação não pode ser desfeita.",
+        "status": {
+          "active": "Ativo",
+          "revoked": "Revogado"
+        },
+        "quotedSetup": "Setup cotado",
+        "quotedMonthly": "Mensalidade cotada",
+        "createdAt": "Criado em"
+      },
+      "error": {
+        "finder_not_found": "Sua conta de finder não foi encontrada.",
+        "app_not_found": "Produto não encontrado.",
+        "product_not_found": "Versão não encontrada.",
+        "app_redirect_hosts_unconfigured": "Produto sem hosts de redirecionamento configurados.",
+        "quoted_setup_out_of_band": "Valor de setup fora da faixa permitida.",
+        "quoted_monthly_out_of_band": "Valor de mensalidade fora da faixa permitida.",
+        "request_failed": "Não foi possível gerar o link. Tente novamente."
+      }
     },
     "commissions": {
       "comingSoon": "Comissões",
@@ -41,6 +85,25 @@
     "payouts": {
       "comingSoon": "Pagamentos",
       "comingSoonDesc": "Histórico de pagamentos disponível em breve."
+    },
+    "clicks": {
+      "title": "Cliques",
+      "empty": "Nenhum clique registrado ainda",
+      "emptyDesc": "Os cliques nos seus links aparecerão aqui.",
+      "kpi": {
+        "total": "Total de cliques",
+        "unique": "Cliques únicos",
+        "conversionRate": "Taxa de conversão"
+      },
+      "table": {
+        "date": "Data/hora",
+        "browser": "Navegador",
+        "origin": "Origem",
+        "country": "País",
+        "utmSource": "UTM Source"
+      },
+      "filterLabel": "Filtrando por link",
+      "clearFilter": "Limpar filtro"
     }
   },
   "seller": {
@@ -79,7 +142,11 @@
     },
     "finders": {
       "title": "Finders",
-      "tabs": { "pending": "Pendentes", "approved": "Aprovados", "suspended": "Suspensos" },
+      "tabs": {
+        "pending": "Pendentes",
+        "approved": "Aprovados",
+        "suspended": "Suspensos"
+      },
       "columns": {
         "name": "Nome",
         "email": "E-mail",
@@ -94,7 +161,11 @@
         "orgId": "Organização (Clerk)",
         "approvedBy": "Aprovado por"
       },
-      "actions": { "view": "Ver detalhe", "approve": "Aprovar", "suspend": "Suspender" },
+      "actions": {
+        "view": "Ver detalhe",
+        "approve": "Aprovar",
+        "suspend": "Suspender"
+      },
       "approveConfirm": "Ao aprovar, um e-mail de convite será enviado para o finder.",
       "suspendLabel": "Motivo da suspensão",
       "empty": "Nenhum finder encontrado",
@@ -108,7 +179,10 @@
     "sellers": {
       "title": "Vendedores",
       "invite": "Convidar vendedor",
-      "fields": { "name": "Nome", "email": "E-mail" },
+      "fields": {
+        "name": "Nome",
+        "email": "E-mail"
+      },
       "empty": "Nenhum vendedor cadastrado"
     },
     "status": {

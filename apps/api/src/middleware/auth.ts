@@ -1,9 +1,7 @@
 import { verifyToken } from '@clerk/backend';
-import { sql } from 'drizzle-orm';
-import type { PgTransaction } from 'drizzle-orm/pg-core';
+import { sql, type SQL } from 'drizzle-orm';
 import type { MiddlewareHandler } from 'hono';
 import { env } from '../env.js';
-import type * as schema from '../db/schema.js';
 
 /**
  * Clerk JWT validation middleware (D-B).
@@ -85,7 +83,11 @@ export const authMiddleware = clerkAuthMiddleware;
  * Admin/cross-tenant routes use getAdminDb() (BYPASSRLS) and NEVER call this (D-C).
  */
 export async function setTenantContext(
-  tx: Pick<PgTransaction<never, typeof schema, never>, 'execute'>,
+  // Structural type: any Drizzle transaction handle exposes `execute`. Using the
+  // concrete PgTransaction<never, …> generic rejected real (non-`never`) tx
+  // handles from getDb().transaction() (the execute() return widened to
+  // RowList). The structural shape keeps D-D intact while accepting any tx.
+  tx: { execute: (query: SQL) => Promise<unknown> },
   orgId: string,
 ): Promise<void> {
   await tx.execute(sql`SELECT set_config('app.current_org_id', ${orgId}, true)`);

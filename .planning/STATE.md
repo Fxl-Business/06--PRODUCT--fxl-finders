@@ -1,7 +1,7 @@
 # State
 
 **Active milestone:** v1.0 — FXL Finders MVP (started 2026-05-28)
-**Active phase:** Phase 03 ✅ EXECUTED + verified + reviewed (2026-05-28). Phase 04 unblocked (finder portal shell + approved-finder users + admin approval queue now exist).
+**Active phase:** Phase 04 ✅ EXECUTED + verified + reviewed (2026-05-28). Phase 05 unblocked (clicks + referral_links tables, click_id attribution ID, shared-utils verifyHmac all exist).
 **Workflow:** /nexo:add-feature with /nexo:autopilot active (single human gate at Phase 0 spec approval was skipped per autopilot rule 4 — choices logged inline in spec § 2)
 **Token tier:** Tier 2 (6 phases)
 
@@ -33,6 +33,16 @@
 - Gates: `pnpm -r type-check` 5/5 · api lint 0 · web lint 0 (14 pre-existing-style react-refresh warns) · site lint 0 · api unit 28/28 · web unit 8/8 · apps/site build 5 routes · perf:audit ok. All LOCKED grep gates clean (db/index 0, setTenantContext real-calls 0, clerkClient-from-@clerk/backend 0, apiClient.get/params 0, findersPublicRouter-in-index.ts 0, z.string().max(0) 0). Live smoke vs Postgres:5006: signup 201 / honeypot silent-201-no-insert / lgpd-false 400 / admin-no-auth 401.
 - verify-work → 03-UAT.md = PASS (26/26). code-review → 03-REVIEW.md = PASS (0 Critical / 0 Warning / 3 Info). Two would-be-Critical bugs caught + fixed during TDD: (a) unique-collision on '' Clerk-ID placeholders → columns made nullable, insert null; (b) plan-A3 getDb() signup insert rejected by FORCE RLS → switched to getAdminDb() per brief KEY reminder.
 - Deviations: clerk_user_id/clerk_org_id nullable (dev. 1); signup/approval writes via getAdminDb not getDb (dev. 2, brief overrides A3); audit_log prev_hash/entry_hash='' placeholders pending Phase 05 hash-chain (dev. 3); apps/web gained a separate `vitest.config.ts` (vitest/config vite-version skew vs build vite@5) + zod added to apps/site; removed pre-existing dup `typescript-eslint` key in web package.json.
+
+## Phase 04 — Referral links + signed redirect + click telemetry (2026-05-28)
+
+- Executed all 10 tasks (T01–T10) + ran `/gsd-ui-phase 4` inline (04-UI-SPEC.md, autopilot no-pause). Migration `0003_nostalgic_jubilee` journaled: referral_links + clicks tables, leads hard-FK promotion, role grants, RLS policies + DESC indexes all APPENDED into the one journaled file (D-F). `pg_policies` confirms 4 policies; FORCE RLS on both tables; clicks append-only (INSERT+SELECT grant only).
+- shared-utils HMAC util (T01): signHmac/verifyHmac (timingSafeEqual)/signReferralUrl/verifyReferralSig/hashIp/dailySalt — Phase 05 webhook verify imports verifyHmac. Built to dist (+`./hmac` subpath, @types/node, vitest). Links service (T04): resolveFinderId(tx,clerkUserId)→finders.id UUID (never raw user_*), validatePriceBand, buildLinkSignature (D-P), buildLinkCode (ulidx 10-char), validateDestinationHost (EXACT host equality, near-match rejected), all tenant fns tx-scoped + setTenantContext (D-D). linksRouter + finderRouter (apps/products/clicks paginated/stats), mounted under clerkAuthMiddleware in server.ts (D-B).
+- apps/site /r/[code] (T06/T07, Node runtime): db.ts (focused subset schema), click-handler, ua-family classifier, rate-limit (graceful no-op when Upstash absent). apps/web finder portal (T08/T09): LinksPage + LinkGeneratorForm + LinkCard + ClicksPage + ClicksTable + hooks, all via apiFetch+Clerk token (D-J). FinderShell "Cliques" nav. i18n in BOTH pt-BR+en.
+- TDD/tests: shared-utils 17 · api unit 47 (links service 19: band/sig/code/EXACT-host incl. near-match) · api RLS integration 9 (referral-links-public-lookup D-E + list-finder-links-cross-tenant D-D, as fxl_finders_app D-G) · site 14 (ua-family all branches + click-handler 410/410/500/302) · web 8 (keys-resolve). = 95 passing.
+- Gates: `pnpm -r type-check` 5/5 · api/site/web lint 0 errors (15 pre-existing react-refresh warns) · perf:audit ok. All 10 LOCKED grep gates clean (VITE_DATABASE_URL 0, db.transaction 6, resolveFinderId 8, public-lookup in journaled migration 1, clerkAuthMiddleware wired, no standalone phase04 .sql, raw Clerk IDs in finder UI 0, default exports 0, clicks UPDATE/DELETE grant 0, any 0). LIVE E2E smoke vs Postgres:5006 + Next dev: POST link → fullUrl /r/<code>; GET /r/<code> → 302 ?ref&fxl_sig + fxl_ref cookie (HttpOnly;Secure;SameSite=Lax;90d); invalid → 410; fxl_sig + link.signature byte-match D-P; clicks row written; stats {total:1,unique:1}.
+- verify-work → 04-UAT.md = PASS (30/30). code-review → 04-REVIEW.md = PASS (0 Critical; 2 Warnings FIXED inline: (a) non-UUID linkId → clean 400 guard not pg-500; (b) listActiveProductsForFinder N+1 → single inArray batch; 2 Info accepted).
+- Deviations (also in plan-brief Wave 3 outcomes): (1) setTenantContext param type widened to structural `{execute}` (the `never` generic rejected real tx handles); (2) apps/site/src/lib/db.ts uses a focused subset schema; (3) cleared stale composite tsbuildinfo so shared-utils .d.ts emit (build-before-consume); (4) eslint ignores generated next-env.d.ts; (5) rate limiter degrades gracefully/no-op without Upstash.
 
 ## Phase 2.5 — Adversarial pre-execution plan review (2026-05-28)
 

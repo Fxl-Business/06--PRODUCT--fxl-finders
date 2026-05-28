@@ -1,12 +1,13 @@
 import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { BarChart2, Link2, Wallet } from 'lucide-react';
+import { BarChart2, Link2, MousePointerClick, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 const finderItems = [
   { to: '/finder/links', icon: Link2, key: 'nav.links' },
+  { to: '/finder/clicks', icon: MousePointerClick, key: 'nav.clicks' },
   { to: '/finder/commissions', icon: BarChart2, key: 'nav.commissions' },
   { to: '/finder/payouts', icon: Wallet, key: 'nav.payouts' },
 ] as const;

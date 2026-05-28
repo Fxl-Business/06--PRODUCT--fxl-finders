@@ -11,7 +11,8 @@
     "links": "My Links",
     "commissions": "Commissions",
     "payouts": "Payouts",
-    "deals": "My Deals"
+    "deals": "My Deals",
+    "clicks": "Clicks"
   },
   "errors": {
     "noRole": {
@@ -31,8 +32,51 @@
       "banner": "Full dashboard coming soon. Your portal is being configured."
     },
     "links": {
-      "comingSoon": "My Links",
-      "comingSoonDesc": "Link generation available in the next phase."
+      "title": "My Links",
+      "generate": "Generate Link",
+      "justGenerated": "Link generated! Copy and share it:",
+      "empty": "No links generated yet",
+      "emptyDesc": "Generate your first referral link to get started.",
+      "kpi": {
+        "active": "Active links",
+        "totalClicks": "Total clicks",
+        "uniqueClicks": "Unique clicks"
+      },
+      "form": {
+        "app": "Product",
+        "appPlaceholder": "Select a product",
+        "product": "Version",
+        "productPlaceholder": "Select a version",
+        "setupPrice": "Setup (R$)",
+        "monthlyPrice": "Monthly (R$)",
+        "bandHint": "Between R$ {{min}} and R$ {{max}}",
+        "submit": "Generate Link",
+        "submitting": "Generating..."
+      },
+      "card": {
+        "code": "Code",
+        "url": "URL",
+        "copy": "Copy",
+        "copied": "Copied!",
+        "revoke": "Revoke",
+        "revokeConfirm": "Are you sure you want to revoke this link? This action cannot be undone.",
+        "status": {
+          "active": "Active",
+          "revoked": "Revoked"
+        },
+        "quotedSetup": "Quoted setup",
+        "quotedMonthly": "Quoted monthly",
+        "createdAt": "Created at"
+      },
+      "error": {
+        "finder_not_found": "Your finder account was not found.",
+        "app_not_found": "Product not found.",
+        "product_not_found": "Version not found.",
+        "app_redirect_hosts_unconfigured": "Product has no redirect hosts configured.",
+        "quoted_setup_out_of_band": "Setup value is outside the allowed band.",
+        "quoted_monthly_out_of_band": "Monthly value is outside the allowed band.",
+        "request_failed": "Could not generate the link. Please try again."
+      }
     },
     "commissions": {
       "comingSoon": "Commissions",
@@ -41,6 +85,25 @@
     "payouts": {
       "comingSoon": "Payouts",
       "comingSoonDesc": "Payout history coming soon."
+    },
+    "clicks": {
+      "title": "Clicks",
+      "empty": "No clicks recorded yet",
+      "emptyDesc": "Clicks on your links will appear here.",
+      "kpi": {
+        "total": "Total clicks",
+        "unique": "Unique clicks",
+        "conversionRate": "Conversion rate"
+      },
+      "table": {
+        "date": "Date/time",
+        "browser": "Browser",
+        "origin": "Origin",
+        "country": "Country",
+        "utmSource": "UTM Source"
+      },
+      "filterLabel": "Filtering by link",
+      "clearFilter": "Clear filter"
     }
   },
   "seller": {
@@ -79,7 +142,11 @@
     },
     "finders": {
       "title": "Finders",
-      "tabs": { "pending": "Pending", "approved": "Approved", "suspended": "Suspended" },
+      "tabs": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "suspended": "Suspended"
+      },
       "columns": {
         "name": "Name",
         "email": "Email",
@@ -94,7 +161,11 @@
         "orgId": "Organization (Clerk)",
         "approvedBy": "Approved by"
       },
-      "actions": { "view": "View detail", "approve": "Approve", "suspend": "Suspend" },
+      "actions": {
+        "view": "View detail",
+        "approve": "Approve",
+        "suspend": "Suspend"
+      },
       "approveConfirm": "On approval, an invitation email will be sent to the finder.",
       "suspendLabel": "Suspension reason",
       "empty": "No finders found",
@@ -108,7 +179,10 @@
     "sellers": {
       "title": "Sellers",
       "invite": "Invite seller",
-      "fields": { "name": "Name", "email": "Email" },
+      "fields": {
+        "name": "Name",
+        "email": "Email"
+      },
       "empty": "No sellers yet"
     },
     "status": {
