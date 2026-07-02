@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "current_milestone_id": null,
+  "delivery": {
+    "mode": "promotion",
+    "trunk": "master",
+    "chain": [
+      "master",
+      "staging",
+      "production"
+    ],
+    "envs": {
+      "staging": "<deploy-target>",
+      "production": "<deploy-target>"
+    }
+  }
+}
