@@ -25,8 +25,8 @@ const emptyToUndefinedUrl = z.preprocess(
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().positive().default(3000),
-  CORS_ORIGIN: z.string().url().default('http://localhost:5173'),
+  PORT: z.coerce.number().int().positive().default(3006),
+  CORS_ORIGIN: z.string().url().default('http://localhost:8006'),
   DATABASE_URL: emptyToUndefined,
   // Admin / cross-tenant DB connection (D-C). Authenticates as the BYPASSRLS
   // role (fxl_finders_admin). Backend-only — NEVER VITE_-prefixed.

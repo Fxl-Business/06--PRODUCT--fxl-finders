@@ -1,4 +1,4 @@
-.PHONY: dev front site back mobile install setup setup-no-db build build-web build-api build-site \
+.PHONY: dev front site back mobile install setup setup-no-db build build-shared build-web build-api build-site \
        lint lint-fix type-check check \
        migrate db-up db-down db-reset docker-up docker-down docker-build \
        clean preview help mobile-install mobile-ios doctor
@@ -29,7 +29,7 @@ front: ## Run only the frontend
 site: ## Run only the landing page (apps/site)
 	pnpm --filter @fxl-finders/site dev
 
-back: ## Run only the API
+back: build-shared ## Run only the API
 	pnpm --filter @fxl-finders/api dev
 
 # --- Setup ---
@@ -45,13 +45,18 @@ setup-no-db: ## Same as `setup` but skips starting Postgres (use when Docker isn
 
 # --- Build ---
 
-build: ## Build everything
-	pnpm run build
+build: build-shared ## Build everything
+	pnpm --filter @fxl-finders/api build
+	pnpm --filter @fxl-finders/web build
+
+build-shared: ## Build shared workspace packages
+	pnpm --filter @fxl-finders/shared-types build
+	pnpm --filter @fxl-finders/shared-utils build
 
 build-web: ## Build frontend
 	pnpm --filter @fxl-finders/web build
 
-build-api: ## Build API
+build-api: build-shared ## Build API
 	pnpm --filter @fxl-finders/api build
 
 build-site: ## Build landing page
