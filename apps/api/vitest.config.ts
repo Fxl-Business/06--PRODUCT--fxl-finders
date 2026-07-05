@@ -8,8 +8,9 @@ import { defineConfig } from 'vitest/config';
  * package.json scripts:
  *   - `pnpm test`              → unit only. Includes src/**\/__tests__, EXCLUDES
  *                                test/rls/** and runs NO globalSetup.
- *   - `pnpm test:integration`  → RLS integration only. Includes ONLY test/rls/**
- *                                and runs the migrate-first globalSetup.
+ *   - `pnpm test:integration`  → DB-backed integration only. Includes test/rls/**
+ *                                plus *.integration.test.ts files and runs the
+ *                                migrate-first globalSetup.
  *
  * The RLS integration tests connect as the unprivileged fxl_finders_app role
  * (NOT postgres/superuser) so RLS is actually exercised (D-G).
@@ -19,8 +20,9 @@ const isIntegration = process.env.VITEST_INTEGRATION === '1';
 export default defineConfig({
   test: isIntegration
     ? {
-        include: ['test/rls/**/*.test.ts'],
+        include: ['test/rls/**/*.test.ts', 'src/**/*.integration.test.ts'],
         globalSetup: ['./test/rls/global-setup.ts'], // D-G: migrate before RLS tests
+        setupFiles: ['./test/rls/setup-env.ts'],
         testTimeout: 30000,
         hookTimeout: 30000,
         // The integration suite shares ONE Postgres test DB and exercises GLOBAL
@@ -32,8 +34,8 @@ export default defineConfig({
         fileParallelism: false,
       }
     : {
-        include: ['src/**/__tests__/**/*.test.ts'],
-        exclude: ['node_modules/**', 'dist/**', 'test/rls/**'],
+      include: ['src/**/__tests__/**/*.test.ts'],
+      exclude: ['node_modules/**', 'dist/**', 'test/rls/**', 'src/**/*.integration.test.ts'],
         // Phase 01 ships only RLS integration tests (run via test:integration).
         // Unit suite is empty for now — don't fail the gate / future CI on it.
         passWithNoTests: true,
