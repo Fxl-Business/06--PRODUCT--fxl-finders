@@ -17,6 +17,8 @@ Keep the repository folder name unchanged until the editor session can safely mo
 ## Auth Model
 
 - The API mounts the Hub BFF at `/auth/*`.
+- Local browser auth enters through same-origin web `/auth/*` routes.
+- Vite proxies those routes to the API BFF, and the local registered callback is `http://localhost:8006/auth/callback`.
 - Protected API routes use Hub bearer tokens through `appAuthMiddleware`.
 - `requireHubAuth` verifies access tokens and exposes `c.get('hubAuth')`.
 - `userId` is the Hub account id.
@@ -51,12 +53,15 @@ Required API vars:
 FXL_HUB_API_URL=http://localhost:9016
 FXL_HUB_PUBLISHABLE_KEY=pk_fxl-sales_VzQ9-LUONCnlKllxCRLffN3nw6Z9PQl2
 FXL_HUB_SECRET_KEY=<operator-issued-secret>
+FXL_HUB_REDIRECT_URI=http://localhost:8006/auth/callback
 ```
 
 Required web vars:
 
 ```dotenv
 VITE_API_URL=http://localhost:3006
+VITE_AUTH_PROXY_TARGET=http://localhost:3006
+VITE_AUTH_BFF_BASE_PATH=
 VITE_FXL_HUB_API_URL=http://localhost:9016
 VITE_FXL_HUB_PUBLISHABLE_KEY=pk_fxl-sales_VzQ9-LUONCnlKllxCRLffN3nw6Z9PQl2
 ```

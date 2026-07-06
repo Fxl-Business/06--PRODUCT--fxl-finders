@@ -73,15 +73,21 @@ describe('resolveHubRedirectUri', () => {
   it('uses an explicit Hub redirect URI when provided', () => {
     expect(
       resolveHubRedirectUri({
-        FXL_HUB_REDIRECT_URI: 'https://api.fxl-sales.com/auth/callback',
+        FXL_HUB_REDIRECT_URI: 'https://app.fxl-sales.com/auth/callback',
         PORT: '3006',
       }),
-    ).toBe('https://api.fxl-sales.com/auth/callback');
+    ).toBe('https://app.fxl-sales.com/auth/callback');
   });
 
-  it('uses the local API port in development', () => {
+  it('uses the local web origin in development', () => {
+    expect(
+      resolveHubRedirectUri({ NODE_ENV: 'development', CORS_ORIGIN: 'http://localhost:8006' }),
+    ).toBe('http://localhost:8006/auth/callback');
+  });
+
+  it('falls back to the local web dev port when CORS_ORIGIN is absent', () => {
     expect(resolveHubRedirectUri({ NODE_ENV: 'development', PORT: '3006' })).toBe(
-      'http://localhost:3006/auth/callback',
+      'http://localhost:8006/auth/callback',
     );
   });
 

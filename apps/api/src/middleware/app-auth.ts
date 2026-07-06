@@ -64,7 +64,8 @@ export function resolveHubRedirectUri(envBag: EnvLike): string | undefined {
   }
 
   if ((envBag.NODE_ENV ?? 'development') !== 'production') {
-    return `http://localhost:${envBag.PORT ?? '3006'}/auth/callback`;
+    const webOrigin = (envBag.CORS_ORIGIN ?? 'http://localhost:8006').replace(/\/+$/, '');
+    return `${webOrigin}/auth/callback`;
   }
 
   throw new Error('FXL_HUB_REDIRECT_URI is required for FXL Hub auth in production');

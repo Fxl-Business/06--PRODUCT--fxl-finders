@@ -47,18 +47,24 @@ API:
 FXL_HUB_API_URL=http://localhost:9016
 FXL_HUB_PUBLISHABLE_KEY=pk_fxl-sales_VzQ9-LUONCnlKllxCRLffN3nw6Z9PQl2
 FXL_HUB_SECRET_KEY=<operator-issued-secret>
+FXL_HUB_REDIRECT_URI=http://localhost:8006/auth/callback
 ```
 
 Web:
 
 ```dotenv
 VITE_API_URL=http://localhost:3006
+VITE_AUTH_PROXY_TARGET=http://localhost:3006
+VITE_AUTH_BFF_BASE_PATH=
 VITE_FXL_HUB_API_URL=http://localhost:9016
 VITE_FXL_HUB_PUBLISHABLE_KEY=pk_fxl-sales_VzQ9-LUONCnlKllxCRLffN3nw6Z9PQl2
 ```
 
 The Hub SDK derives `product.fxl-sales` from the publishable key.
 Only set `FXL_HUB_AUDIENCE` when an operator explicitly asks for an override.
+Local browser auth uses same-origin `/auth/*` routes on `http://localhost:8006`.
+Vite proxies those routes to `http://localhost:3006`, so the registered Hub redirect URI is `http://localhost:8006/auth/callback`.
+In production, either keep the same route shape with a scoped web rewrite for `/auth/login`, `/auth/callback`, `/auth/refresh`, `/auth/switch`, and `/auth/logout`, or set `VITE_AUTH_BFF_BASE_PATH` and `FXL_HUB_REDIRECT_URI` to the same API-origin callback.
 
 ## Development
 

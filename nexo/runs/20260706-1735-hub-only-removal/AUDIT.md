@@ -7,7 +7,8 @@
 - [ ] Provision Hub workspaces with preserved existing org ids.
 - [ ] Invite members through Hub.
 - [ ] Seed day-one `sales.core` entitlements before first Hub login.
-- [ ] Set production Hub redirect URI to the API `/auth/callback` URL.
+- [ ] Set production Hub redirect URI to the registered product `/auth/callback` URL.
+  Use the web-origin callback when the web deploy proxies the scoped SDK BFF routes to the API.
 
 ## Local Notes
 

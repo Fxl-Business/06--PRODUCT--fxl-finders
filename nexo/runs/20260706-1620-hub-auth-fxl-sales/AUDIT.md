@@ -6,7 +6,8 @@
 - [ ] Provision Hub workspaces with preserved existing org ids before product login.
 - [ ] Seed day-one `sales.core` entitlements for every migrated workspace.
 - [ ] Create or invite the corresponding Hub accounts and workspaces for admin-created sellers and approved finders.
-- [ ] Set `FXL_HUB_REDIRECT_URI` in production to the registered product API callback URL, for example `https://api.example.com/auth/callback`.
+- [ ] Set `FXL_HUB_REDIRECT_URI` in production to the registered product callback URL.
+  Use the web-origin `/auth/callback` URL when the web deploy proxies the scoped SDK BFF routes to the API.
 - [ ] Browser visual verification could not run because this Codex session has no available in-app browser backend.
 - [ ] Reopen the app at `http://localhost:8006` and inspect the auth shell after Hub envs are set.
 
