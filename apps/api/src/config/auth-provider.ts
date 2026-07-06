@@ -1,17 +1,10 @@
-export type AuthProvider = 'clerk' | 'hub';
-
-export type AuthProviderConfig =
-  | {
-      provider: 'clerk';
-    }
-  | {
-      provider: 'hub';
-      apiUrl: string;
-      publishableKey: string;
-      secretKey: string;
-      audience: string;
-      coreModule: string;
-    };
+export type HubAuthConfig = {
+  apiUrl: string;
+  publishableKey: string;
+  secretKey: string;
+  audience: string;
+  coreModule: string;
+};
 
 type EnvLike = Record<string, string | undefined>;
 
@@ -31,33 +24,30 @@ function coreModuleFromAudience(audience: string): string {
 function required(env: EnvLike, key: string): string {
   const value = env[key];
   if (!value) {
-    throw new Error(`${key} is required when AUTH_PROVIDER=hub`);
+    throw new Error(`${key} is required for FXL Hub auth`);
   }
   return value;
 }
 
-export function loadAuthProviderConfig(env: EnvLike): AuthProviderConfig {
-  const provider = (env.AUTH_PROVIDER ?? 'clerk').toLowerCase();
-
-  if (provider === 'clerk') {
-    return { provider: 'clerk' };
-  }
-
-  if (provider !== 'hub') {
-    throw new Error('AUTH_PROVIDER must be either clerk or hub');
-  }
-
+export function loadHubAuthConfig(env: EnvLike): HubAuthConfig {
   const apiUrl = required(env, 'FXL_HUB_API_URL');
   const publishableKey = required(env, 'FXL_HUB_PUBLISHABLE_KEY');
   const secretKey = required(env, 'FXL_HUB_SECRET_KEY');
   const audience = env.FXL_HUB_AUDIENCE ?? parseAudienceFromPublishableKey(publishableKey);
 
   return {
-    provider: 'hub',
     apiUrl,
     publishableKey,
     secretKey,
     audience,
     coreModule: coreModuleFromAudience(audience),
   };
+}
+
+export function tryLoadHubAuthConfig(env: EnvLike): HubAuthConfig | null {
+  try {
+    return loadHubAuthConfig(env);
+  } catch {
+    return null;
+  }
 }

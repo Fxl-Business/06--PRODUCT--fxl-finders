@@ -1,13 +1,13 @@
 /**
  * Cross-tenant integration test for listFinderLinks (plan-brief D-D).
  *
- * Proves a finder in org B calling listFinderLinks does NOT see org A's links —
+ * Proves a finder in org B calling listFinderLinks does NOT see org A's links -
  * the setTenantContext(tx, orgB) + the referral_links_tenant_isolation RLS
  * policy returns 0 rows. Positive control: under org A context the link is
  * returned. Exercises the REAL service fn (not a raw query) so the D-D
  * transaction wrapping + RLS are validated end-to-end.
  *
- * Connects via getDb() pointed at fxl_finders_app (D-G). Run with:
+ * Connects via getDb() pointed at fxl_sales_app (D-G). Run with:
  *   pnpm --filter @fxl-sales/api test:integration
  */
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -18,11 +18,11 @@ import { listFinderLinks } from '../../src/domains/links/service.js';
 
 const TEST_DB_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgresql://fxl_finders_app:fxl_finders_app@localhost:5006/fxl_finders';
+  'postgresql://fxl_sales_app:fxl_sales_app@localhost:5006/fxl_sales';
 const CLEANUP_DB_URL =
   process.env.TEST_MIGRATE_DATABASE_URL ??
   process.env.MIGRATE_DATABASE_URL ??
-  'postgresql://postgres:postgres@localhost:5006/fxl_finders';
+  'postgresql://postgres:postgres@localhost:5006/fxl_sales';
 
 describe('listFinderLinks cross-tenant isolation (D-D)', () => {
   let client: postgres.Sql;
@@ -65,11 +65,11 @@ describe('listFinderLinks cross-tenant isolation (D-D)', () => {
     productId = (product as { id: string }).id;
 
     const [fa] = await cleanup`
-      INSERT INTO finders (org_id, clerk_user_id, clerk_org_id, status, display_name, contact_email)
+      INSERT INTO finders (org_id, account_id, workspace_id, status, display_name, contact_email)
       VALUES (${ORG_A}, ${USER_A}, ${'corg_lfl_a_' + stamp}, 'approved', 'A', 'a@lfl.com') RETURNING id`;
     finderAId = (fa as { id: string }).id;
     const [fb] = await cleanup`
-      INSERT INTO finders (org_id, clerk_user_id, clerk_org_id, status, display_name, contact_email)
+      INSERT INTO finders (org_id, account_id, workspace_id, status, display_name, contact_email)
       VALUES (${ORG_B}, ${USER_B}, ${'corg_lfl_b_' + stamp}, 'approved', 'B', 'b@lfl.com') RETURNING id`;
     finderBId = (fb as { id: string }).id;
 

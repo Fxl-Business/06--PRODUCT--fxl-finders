@@ -25,7 +25,7 @@ import { writeAuditEntry } from '../audit/service.js';
  * tenant-scoped FORCE RLS) without a tenant context. setTenantContext is NEVER called
  * here. The split WITH CHECK(true) INSERT policies (D10) keep the app-role webhook path
  * viable for the writes, but the cross-tenant READS require the BYPASSRLS connection.
- * The route handler passes in rawBodyHash (D-L) — the service stores it verbatim in
+ * The route handler passes in rawBodyHash (D-L) - the service stores it verbatim in
  * webhook_events.body_hash and does NOT recompute a hash of the parsed body.
  *
  * Two-level idempotency guard: webhook_events ON CONFLICT(source,event_id) (body-level)
@@ -37,7 +37,7 @@ export type ConversionRow = typeof conversions.$inferSelect;
 type ClickRow = { clickId: string; linkId: string; createdAt: Date };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Zod schemas (D-M: ONE field set — byte-matches Phase 06 sender)
+// Zod schemas (D-M: ONE field set - byte-matches Phase 06 sender)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const WebhookBodySchema = z.object({
@@ -47,7 +47,7 @@ export const WebhookBodySchema = z.object({
   idempotency_key: z.string().min(1),
   click_id: z.string().nullable(),
   finder_code: z.string().optional(), // D-M attribution fallback
-  seller_clerk_id: z.string().nullable(),
+  seller_account_id: z.string().nullable(),
   customer_email: z.string().email(),
   customer_name: z.string().min(1), // D-L leads PII
   customer_phone: z.string().nullable(), // D-L leads PII
@@ -97,13 +97,13 @@ export function buildIdempotencyKey(
   return createHash('sha256').update(source + externalOrderId + eventType).digest('hex');
 }
 
-/** customer_email_hash = sha256(email + orgId) — org-salted, irreversible (D-L). */
+/** customer_email_hash = sha256(email + orgId) - org-salted, irreversible (D-L). */
 export function hashCustomerEmail(email: string, orgId: string): string {
   return createHash('sha256').update(email + orgId).digest('hex');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DB function — full ingest (single transaction)
+// DB function - full ingest (single transaction)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type IngestResult = {
@@ -118,7 +118,7 @@ export async function ingestConversion(
   rawBodyHash: string,
 ): Promise<IngestResult> {
   // The sale ingest path books POSITIVE commissions. A 'refund' event must NOT flow
-  // here (it would mis-book a positive commission) — refunds go through POST /refund →
+  // here (it would mis-book a positive commission) - refunds go through POST /refund →
   // reverseCommission (which inserts negative rows / flips status). Guard explicitly.
   if (body.event_type !== 'sale') {
     throw new Error('unsupported_event_type');
@@ -198,14 +198,14 @@ export async function ingestConversion(
 
     // 5. Resolve seller (nullable; missing → warn, do not block).
     let sellerId: string | null = null;
-    if (body.seller_clerk_id) {
+    if (body.seller_account_id) {
       const [seller] = await tx
         .select({ id: sellers.id })
         .from(sellers)
-        .where(eq(sellers.clerkUserId, body.seller_clerk_id))
+        .where(eq(sellers.accountId, body.seller_account_id))
         .limit(1);
       if (seller) sellerId = seller.id;
-      else console.warn(`[ingest] seller not found for clerk_user_id=${body.seller_clerk_id}`);
+      else console.warn(`[ingest] seller not found for account_id=${body.seller_account_id}`);
     }
 
     // 6. Resolve commission rules.

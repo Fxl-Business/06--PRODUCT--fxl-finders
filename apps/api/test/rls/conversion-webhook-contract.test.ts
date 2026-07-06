@@ -1,5 +1,5 @@
 /**
- * Phase 06 T13 — automated e2e conversion-contract test (replaces deleted T02).
+ * Phase 06 T13 - automated e2e conversion-contract test (replaces deleted T02).
  *
  * The PRIMARY regression gate for the cross-repo webhook contract. Uses Hono's
  * test request against the assembled conversion route + HMAC middleware (exactly as
@@ -23,11 +23,11 @@ import { hmacVerifyMiddleware } from '../../src/domains/conversions/hmac-middlew
 import { conversionsRouter } from '../../src/domains/conversions/routes.js';
 import { buildIdempotencyKey } from '../../src/domains/conversions/service.js';
 
-const SOURCE = 'fxl-financiero'; // D-A canonical slug (…ciero) — byte-identical to the seed
+const SOURCE = 'fxl-financiero'; // D-A canonical slug (…ciero) - byte-identical to the seed
 const SEED_DB_URL =
   process.env.TEST_MIGRATE_DATABASE_URL ??
   process.env.MIGRATE_DATABASE_URL ??
-  'postgresql://postgres:postgres@localhost:5006/fxl_finders';
+  'postgresql://postgres:postgres@localhost:5006/fxl_sales';
 
 /** Assemble the conversion webhook path exactly as server.ts does (HMAC before route). */
 function buildApp() {
@@ -64,7 +64,7 @@ describe('conversion webhook contract (Phase 06 T13, D-M/D-N/D-O)', () => {
     // The T01 seed (run by global-setup migrations) created the fxl-financiero app.
     const [app] = await seed`
       SELECT id, webhook_signing_secret FROM apps WHERE slug = ${SOURCE} LIMIT 1`;
-    if (!app) throw new Error('seed app fxl-financiero missing — global-setup did not run T01');
+    if (!app) throw new Error('seed app fxl-financiero missing - global-setup did not run T01');
     appId = (app as { id: string }).id;
     secret = (app as { webhook_signing_secret: string }).webhook_signing_secret;
 
@@ -74,7 +74,7 @@ describe('conversion webhook contract (Phase 06 T13, D-M/D-N/D-O)', () => {
 
     // A finder + referral_link + click so attribution resolves by click_id.
     const [finder] = await seed`
-      INSERT INTO finders (org_id, clerk_user_id, clerk_org_id, status, display_name, contact_email, cpf, pix_key)
+      INSERT INTO finders (org_id, account_id, workspace_id, status, display_name, contact_email, cpf, pix_key)
       VALUES (${ORG}, ${'usr_e2e_' + stamp}, ${'corg_e2e_' + stamp}, 'approved', 'E2E Finder', 'e2e@x.com', '12345678901', 'e2e@x.com')
       RETURNING id`;
     finderId = (finder as { id: string }).id;
@@ -111,9 +111,9 @@ describe('conversion webhook contract (Phase 06 T13, D-M/D-N/D-O)', () => {
       idempotency_key: buildIdempotencyKey(SOURCE, externalOrderId, 'sale'),
       click_id: clickId,
       finder_code: code,
-      seller_clerk_id: null,
+      seller_account_id: null,
       customer_email: 'e2e-cust@x.com',
-      customer_name: 'José Antônio Açaí', // non-ASCII PII — byte-stable sign/verify
+      customer_name: 'José Antônio Açaí', // non-ASCII PII - byte-stable sign/verify
       customer_phone: '+5511999998888',
       customer_cpf: '99988877766',
       customer_org_id: externalOrderId,

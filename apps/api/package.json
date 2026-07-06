@@ -16,7 +16,6 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@clerk/backend": "^1.21.0",
     "@fxl-business/hub-sdk": "^1.2.0",
     "@fxl-sales/shared-types": "workspace:*",
     "@fxl-sales/shared-utils": "workspace:*",

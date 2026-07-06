@@ -5,7 +5,7 @@ import { LegalLayout } from '@/components/LegalLayout';
 export function generateMetadata(): Metadata {
   const t = getT();
   return {
-    title: `${t.legal.privacy.title} — ${t.app.name}`,
+    title: `${t.legal.privacy.title} - ${t.app.name}`,
     description: t.legal.privacy.title,
   };
 }
@@ -62,7 +62,7 @@ export default function PrivacyPage() {
       <Section title="4. Base legal">
         <p>
           O tratamento dos dados essenciais tem como base legal a execução de contrato (Art. 7º, V,
-          da Lei nº 13.709/2018 — LGPD). O envio de comunicações de marketing tem como base o seu
+          da Lei nº 13.709/2018 - LGPD). O envio de comunicações de marketing tem como base o seu
           consentimento livre e específico (Art. 7º, I), que pode ser revogado a qualquer momento.
         </p>
       </Section>
@@ -70,7 +70,7 @@ export default function PrivacyPage() {
       <Section title="5. Compartilhamento de dados">
         <p>
           Seus dados não são vendidos nem compartilhados com terceiros, exceto com o provedor de
-          autenticação Clerk, estritamente necessário para a operação de login e identidade na
+          autenticação FXL Hub, estritamente necessário para a operação de login e identidade na
           plataforma.
         </p>
       </Section>

@@ -75,7 +75,7 @@ describe('buildLinkCode', () => {
   });
 });
 
-describe('validateDestinationHost (EXACT equality — open-redirect defense)', () => {
+describe('validateDestinationHost (EXACT equality - open-redirect defense)', () => {
   it('returns true when URL host EXACTLY equals an allowed host', () => {
     expect(validateDestinationHost('https://app.fxl.com.br/precos', ['app.fxl.com.br'])).toBe(true);
   });
@@ -110,7 +110,7 @@ describe('validateDestinationHost (EXACT equality — open-redirect defense)', (
 });
 
 describe('resolveFinderId', () => {
-  it('falls back to preserved orgId when Hub accountId does not match legacy clerk_user_id', async () => {
+  it('falls back to preserved orgId when Hub accountId does not match legacy account_id', async () => {
     const calls: Array<Array<{ id: string }>> = [[], [{ id: 'finder-by-org' }]];
     const tx = {
       select: () => ({

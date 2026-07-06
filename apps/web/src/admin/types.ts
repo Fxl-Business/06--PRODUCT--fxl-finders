@@ -103,8 +103,8 @@ export type FinderStatus = 'pending' | 'approved' | 'suspended';
 export interface FinderRow {
   id: string;
   orgId: string;
-  clerkUserId: string | null;
-  clerkOrgId: string | null;
+  accountId: string | null;
+  workspaceId: string | null;
   status: FinderStatus;
   displayName: string;
   contactEmail: string;
@@ -134,7 +134,7 @@ export type SellerStatus = 'active' | 'inactive';
 
 export interface SellerRow {
   id: string;
-  clerkUserId: string | null;
+  accountId: string | null;
   displayName: string;
   contactEmail: string;
   status: SellerStatus;

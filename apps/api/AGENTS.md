@@ -1,45 +1,51 @@
-# apps/api — agent guide
+# apps/api - agent guide
 
 ## Stack
 
-Hono 4 + Drizzle ORM + Postgres (postgres-js) + Clerk Backend SDK + Zod validation.
+Hono 4, Drizzle ORM, Postgres through postgres-js, FXL Hub SDK, and Zod validation.
 
 ## Layout
 
-```
+```text
 src/
 ├── server.ts              # entrypoint: app composition + serve
 ├── env.ts                 # zod-validated process.env
 ├── db/
 │   ├── client.ts          # postgres-js connection + drizzle wrapper
-│   └── schema.ts          # Drizzle tables — extend per domain
+│   └── schema.ts          # Drizzle tables
 ├── middleware/
-│   ├── auth.ts            # Clerk JWT → c.set('userId', 'orgId')
+│   ├── app-auth.ts        # Hub auth and BFF setup
+│   ├── auth.ts            # tenant context helpers
 │   ├── cors.ts            # cors with env.CORS_ORIGIN
 │   └── error.ts           # HTTPException + 500 catcher
 ├── routes/
-│   └── health.ts          # / liveness probe
+│   └── health.ts          # liveness probe
 └── domains/
     └── {name}/
         ├── routes.ts      # Hono router
-        └── service.ts     # zod schemas + business logic + drizzle queries
+        └── service.ts     # zod schemas, business logic, drizzle queries
 ```
 
 ## Rules
 
-1. **Domain pattern.** New endpoints go in `src/domains/<name>/{routes,service}.ts`. Routes call services; services do drizzle + zod. No business logic in routes.
-2. **org_id filtering.** Every query MUST filter by `eq(table.orgId, c.get('orgId'))`. Mutations also include `eq(table.id, id)` for safety.
-3. **Auth.** Use `c.get('userId')` / `c.get('orgId')` from auth middleware. Never trust request body for these.
-4. **Zod everywhere.** Input validation via `@hono/zod-validator` at the route boundary. Internal service functions receive parsed objects.
-5. **Drizzle.** Schemas in `db/schema.ts`. Generate migrations with `pnpm db:generate`. Apply with `pnpm db:migrate`.
+1. New endpoints go in `src/domains/<name>/{routes,service}.ts`.
+2. Routes call services, and services own drizzle plus zod-aware business rules.
+3. Every tenant query must filter by `eq(table.orgId, c.get('orgId'))`.
+4. Mutations must also include `eq(table.id, id)` or the equivalent tenant-safe key.
+5. Use `c.get('userId')`, `c.get('orgId')`, and `c.get('hubAuth')` from auth middleware.
+6. Never trust tenant or account identifiers from request bodies.
+7. Feature gates check Hub entitlement modules from verified claims.
+8. Generate migrations with `pnpm db:generate` and apply with `pnpm db:migrate`.
 
 ## Commands
 
 ```bash
-pnpm dev              # tsx watch
-pnpm build            # tsc + tsc-alias
-pnpm type-check       # tsc --noEmit
-pnpm db:generate      # drizzle-kit generate
-pnpm db:migrate       # apply migrations
-pnpm db:studio        # drizzle-kit web UI
+pnpm dev
+pnpm build
+pnpm type-check
+pnpm test
+pnpm test:integration
+pnpm db:generate
+pnpm db:migrate
+pnpm db:studio
 ```

@@ -1,8 +1,8 @@
 /**
- * Conversion ingest unit tests (Phase 05 T05 — TDD, RED first).
+ * Conversion ingest unit tests (Phase 05 T05 - TDD, RED first).
  *
  * Pure-function + Zod coverage: resolveAttribution (last-touch within window),
- * buildIdempotencyKey (sha256, D-N — Phase 06 byte-matches it), hashCustomerEmail,
+ * buildIdempotencyKey (sha256, D-N - Phase 06 byte-matches it), hashCustomerEmail,
  * and WebhookBodySchema (D-M one field set incl. finder_code + PII).
  */
 import { createHash } from 'node:crypto';
@@ -86,7 +86,7 @@ describe('WebhookBodySchema (D-M one field set)', () => {
     event_type: 'sale',
     idempotency_key: 'k',
     click_id: 'clk_123',
-    seller_clerk_id: null,
+    seller_account_id: null,
     customer_email: 'a@b.com',
     customer_name: 'Alice',
     customer_phone: '+5511999999999',

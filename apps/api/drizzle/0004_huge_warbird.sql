@@ -79,9 +79,9 @@ CREATE INDEX "conversions_finder_id_created_at_idx" ON "conversions" USING btree
 CREATE INDEX "conversions_org_id_idx" ON "conversions" USING btree ("org_id");--> statement-breakpoint
 
 -- ════════════════════════════════════════════════════════════════════════════
--- Phase 05 RLS / grants / circular FK — APPENDED INTO the journaled migration
+-- Phase 05 RLS / grants / circular FK - APPENDED INTO the journaled migration
 -- (plan-brief D-F). NOT a standalone unjournaled .sql (the migrator skips those).
--- Runs as fxl_finders_owner / superuser. Runtime role: fxl_finders_app (no BYPASSRLS).
+-- Runs as fxl_sales_owner / superuser. Runtime role: fxl_sales_app (no BYPASSRLS).
 -- Admin/cross-tenant reads + state transitions use getAdminDb() BYPASSRLS (D-C).
 -- ════════════════════════════════════════════════════════════════════════════
 
@@ -97,23 +97,23 @@ DROP INDEX IF EXISTS "conversions_finder_id_created_at_idx";--> statement-breakp
 CREATE INDEX "conversions_finder_id_created_at_idx" ON "conversions" USING btree ("finder_id","created_at" DESC);--> statement-breakpoint
 
 -- ── Phase 05 role grants ─────────────────────────────────────────────────────
--- App role (fxl_finders_app) — RLS-enforced, finder reads + webhook INSERT only:
-GRANT SELECT, INSERT ON conversions TO fxl_finders_app;--> statement-breakpoint   -- no UPDATE (append-only for webhook path)
-GRANT SELECT, INSERT ON commissions TO fxl_finders_app;--> statement-breakpoint   -- D-C: NO UPDATE — admin transitions run on getAdminDb() (BYPASSRLS)
-GRANT SELECT ON payouts TO fxl_finders_app;--> statement-breakpoint                -- finder reads own payouts; INSERT/UPDATE via getAdminDb()
-GRANT SELECT, INSERT ON audit_log TO fxl_finders_app;--> statement-breakpoint      -- append-only; re-assert (Phase 01 may have granted)
+-- App role (fxl_sales_app) - RLS-enforced, finder reads + webhook INSERT only:
+GRANT SELECT, INSERT ON conversions TO fxl_sales_app;--> statement-breakpoint   -- no UPDATE (append-only for webhook path)
+GRANT SELECT, INSERT ON commissions TO fxl_sales_app;--> statement-breakpoint   -- D-C: NO UPDATE - admin transitions run on getAdminDb() (BYPASSRLS)
+GRANT SELECT ON payouts TO fxl_sales_app;--> statement-breakpoint                -- finder reads own payouts; INSERT/UPDATE via getAdminDb()
+GRANT SELECT, INSERT ON audit_log TO fxl_sales_app;--> statement-breakpoint      -- append-only; re-assert (Phase 01 may have granted)
 
--- Admin role (fxl_finders_admin, BYPASSRLS — created in Phase 01 per D-C) — cross-tenant:
-GRANT SELECT, INSERT, UPDATE ON conversions TO fxl_finders_admin;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE ON commissions TO fxl_finders_admin;--> statement-breakpoint  -- lock/reverse/promote transitions
-GRANT SELECT, INSERT, UPDATE ON payouts TO fxl_finders_admin;--> statement-breakpoint        -- payout create + mark-paid
-GRANT SELECT, INSERT ON audit_log TO fxl_finders_admin;--> statement-breakpoint               -- admin money-mutation audit rows (append-only)
+-- Admin role (fxl_sales_admin, BYPASSRLS - created in Phase 01 per D-C) - cross-tenant:
+GRANT SELECT, INSERT, UPDATE ON conversions TO fxl_sales_admin;--> statement-breakpoint
+GRANT SELECT, INSERT, UPDATE ON commissions TO fxl_sales_admin;--> statement-breakpoint  -- lock/reverse/promote transitions
+GRANT SELECT, INSERT, UPDATE ON payouts TO fxl_sales_admin;--> statement-breakpoint        -- payout create + mark-paid
+GRANT SELECT, INSERT ON audit_log TO fxl_sales_admin;--> statement-breakpoint               -- admin money-mutation audit rows (append-only)
 -- D-C: ingestConversion runs on getAdminDb() (BYPASSRLS) and must SELECT the Phase 04
 -- attribution tables (clicks, referral_links). BYPASSRLS bypasses RLS policies, NOT
--- table-level GRANTs — Phase 04 granted these only to fxl_finders_app, so the admin
+-- table-level GRANTs - Phase 04 granted these only to fxl_sales_app, so the admin
 -- role needs an explicit SELECT here for the webhook attribution lookup.
-GRANT SELECT ON clicks TO fxl_finders_admin;--> statement-breakpoint
-GRANT SELECT ON referral_links TO fxl_finders_admin;--> statement-breakpoint
+GRANT SELECT ON clicks TO fxl_sales_admin;--> statement-breakpoint
+GRANT SELECT ON referral_links TO fxl_sales_admin;--> statement-breakpoint
 
 -- ── conversions RLS (split-INSERT pattern, D10) ──────────────────────────────
 ALTER TABLE conversions ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -121,13 +121,13 @@ ALTER TABLE conversions FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 
 -- INSERT path: webhook handler (no JWT, no tenant context) → allow all inserts.
 CREATE POLICY conversions_insert_webhook ON conversions
-  AS PERMISSIVE FOR INSERT TO fxl_finders_app
+  AS PERMISSIVE FOR INSERT TO fxl_sales_app
   WITH CHECK (true);--> statement-breakpoint
 
 -- SELECT path: finder reads own conversions. Admin reads bypass RLS via the
--- fxl_finders_admin (BYPASSRLS) connection / getAdminDb() (D-C), NOT a policy.
+-- fxl_sales_admin (BYPASSRLS) connection / getAdminDb() (D-C), NOT a policy.
 CREATE POLICY conversions_select_tenant ON conversions
-  AS PERMISSIVE FOR SELECT TO fxl_finders_app
+  AS PERMISSIVE FOR SELECT TO fxl_sales_app
   USING (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
 
 -- ── commissions RLS (split-INSERT pattern, D10) ──────────────────────────────
@@ -136,16 +136,16 @@ ALTER TABLE commissions FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 
 -- INSERT path: commission creation runs inside the webhook handler (no JWT).
 CREATE POLICY commissions_insert_webhook ON commissions
-  AS PERMISSIVE FOR INSERT TO fxl_finders_app
+  AS PERMISSIVE FOR INSERT TO fxl_sales_app
   WITH CHECK (true);--> statement-breakpoint
 
 -- SELECT path: finder reads own commissions. Admin state transitions (lock/reverse)
--- run on the fxl_finders_admin (BYPASSRLS) connection via getAdminDb() (D-C).
+-- run on the fxl_sales_admin (BYPASSRLS) connection via getAdminDb() (D-C).
 -- D-C (LOCKED): NO `commissions_update_admin ... USING(true)` policy. The app role
 -- gets NO UPDATE policy/grant on commissions, so it cannot mutate them at all
--- (defence in depth — kills the prior cross-tenant write hole).
+-- (defence in depth - kills the prior cross-tenant write hole).
 CREATE POLICY commissions_tenant ON commissions
-  AS PERMISSIVE FOR SELECT TO fxl_finders_app
+  AS PERMISSIVE FOR SELECT TO fxl_sales_app
   USING (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
 
 -- ── leads (D-L: webhook-path INSERT) ─────────────────────────────────────────
@@ -153,15 +153,15 @@ CREATE POLICY commissions_tenant ON commissions
 -- tenant context). Phase 01 ships a tenant-only ALL policy on leads, which would
 -- block the webhook INSERT (WITH CHECK org_id = '' fails). Add a split-INSERT
 -- policy mirroring conversions/commissions. SELECT stays tenant-scoped (Phase 01
--- ALL policy still applies for finder reads — do NOT widen visibility).
+-- ALL policy still applies for finder reads - do NOT widen visibility).
 DROP POLICY IF EXISTS leads_insert_webhook ON leads;--> statement-breakpoint
 CREATE POLICY leads_insert_webhook ON leads
-  AS PERMISSIVE FOR INSERT TO fxl_finders_app
+  AS PERMISSIVE FOR INSERT TO fxl_sales_app
   WITH CHECK (true);--> statement-breakpoint
-GRANT INSERT ON leads TO fxl_finders_app;--> statement-breakpoint  -- re-assert; needed for the D-L converted-lead row
+GRANT INSERT ON leads TO fxl_sales_app;--> statement-breakpoint  -- re-assert; needed for the D-L converted-lead row
 
 -- ── payouts ──────────────────────────────────────────────────────────────────
--- NO RLS on payouts — admin-managed cross-tenant (same as apps, products,
+-- NO RLS on payouts - admin-managed cross-tenant (same as apps, products,
 -- commission_rules). Admin endpoints use getAdminDb() (BYPASSRLS, D-C). Finder
 -- reads own payouts via explicit WHERE finder_id = $finderId on the app conn.
 -- (No ENABLE ROW LEVEL SECURITY on payouts in v1.0.)

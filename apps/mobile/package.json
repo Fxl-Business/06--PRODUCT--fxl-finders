@@ -9,10 +9,9 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "type-check": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint --no-cache"
   },
   "dependencies": {
-    "@clerk/clerk-expo": "^2.19.31",
     "@expo-google-fonts/dm-sans": "^0.4.2",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/metro-runtime": "~6.1.2",
@@ -26,7 +25,6 @@
     "expo-linking": "~8.0.12",
     "expo-localization": "~17.0.8",
     "expo-router": "~6.0.23",
-    "expo-secure-store": "~15.0.8",
     "expo-status-bar": "~3.0.9",
     "expo-updates": "~29.0.17",
     "i18next": "^24.2.3",
@@ -47,21 +45,5 @@
     "@types/react": "~19.1.0",
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.2"
-  },
-  "pnpm": {
-    "overrides": {
-      "expo-auth-session": "~7.0.11",
-      "expo-crypto": "~15.0.9",
-      "expo-application": "~7.0.8",
-      "expo-web-browser": "~15.0.11",
-      "react": "19.1.0",
-      "react-dom": "19.1.0"
-    },
-    "peerDependencyRules": {
-      "allowedVersions": {
-        "react": "19.1.0",
-        "react-dom": "19.1.0"
-      }
-    }
   }
 }

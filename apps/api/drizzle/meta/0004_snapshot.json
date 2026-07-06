@@ -1018,14 +1018,14 @@
           "primaryKey": false,
           "notNull": true
         },
-        "clerk_user_id": {
-          "name": "clerk_user_id",
+        "account_id": {
+          "name": "account_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "clerk_org_id": {
-          "name": "clerk_org_id",
+        "workspace_id": {
+          "name": "workspace_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -1169,18 +1169,18 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "finders_clerk_user_id_unique": {
-          "name": "finders_clerk_user_id_unique",
+        "finders_account_id_unique": {
+          "name": "finders_account_id_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "clerk_user_id"
+            "account_id"
           ]
         },
-        "finders_clerk_org_id_unique": {
-          "name": "finders_clerk_org_id_unique",
+        "finders_workspace_id_unique": {
+          "name": "finders_workspace_id_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "clerk_org_id"
+            "workspace_id"
           ]
         }
       },
@@ -1804,8 +1804,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "clerk_user_id": {
-          "name": "clerk_user_id",
+        "account_id": {
+          "name": "account_id",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -1846,11 +1846,11 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "sellers_clerk_user_id_unique": {
-          "name": "sellers_clerk_user_id_unique",
+        "sellers_account_id_unique": {
+          "name": "sellers_account_id_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "clerk_user_id"
+            "account_id"
           ]
         }
       },

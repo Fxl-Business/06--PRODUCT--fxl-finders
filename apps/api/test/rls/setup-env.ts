@@ -1,16 +1,16 @@
 const migrateUrl =
   process.env.TEST_MIGRATE_DATABASE_URL ??
   process.env.MIGRATE_DATABASE_URL ??
-  'postgresql://postgres:postgres@localhost:5006/fxl_finders';
+  'postgresql://postgres:postgres@localhost:5006/fxl_sales';
 
 const appUrl =
   process.env.TEST_DATABASE_URL ??
   process.env.DATABASE_URL ??
-  'postgresql://fxl_finders_app:fxl_finders_app@localhost:5006/fxl_finders';
+  'postgresql://fxl_sales_app:fxl_sales_app@localhost:5006/fxl_sales';
 
 const adminUrl =
   process.env.ADMIN_DATABASE_URL ??
-  'postgresql://fxl_finders_admin:fxl_finders_admin@localhost:5006/fxl_finders';
+  'postgresql://fxl_sales_admin:fxl_sales_admin@localhost:5006/fxl_sales';
 
 process.env.TEST_MIGRATE_DATABASE_URL ??= migrateUrl;
 process.env.MIGRATE_DATABASE_URL ??= migrateUrl;

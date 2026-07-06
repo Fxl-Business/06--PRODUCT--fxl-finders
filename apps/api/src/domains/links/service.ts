@@ -96,7 +96,7 @@ export async function resolveFinderId(tx: Tx, authSubject: string, orgId?: strin
   const rows = await tx
     .select({ id: finders.id })
     .from(finders)
-    .where(eq(finders.clerkUserId, authSubject))
+    .where(eq(finders.accountId, authSubject))
     .limit(1);
   let row = rows[0];
   if (!row && orgId) {
@@ -129,7 +129,7 @@ export async function createLink(
     await setTenantContext(tx, orgId);
     const finderId = await resolveFinderId(tx, authSubject, orgId);
 
-    // App must exist + be active. apps/products/price_bands have NO RLS — readable
+    // App must exist + be active. apps/products/price_bands have NO RLS - readable
     // on the app role; reading them inside the tenant tx is harmless.
     const [app] = await tx.select().from(apps).where(eq(apps.id, input.appId)).limit(1);
     if (!app || app.status !== 'active') {
@@ -299,7 +299,7 @@ export async function listFinderClicks(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Finder catalog reads (apps/products have NO RLS — read on the app role, NO
+// Finder catalog reads (apps/products have NO RLS - read on the app role, NO
 // setTenantContext). Expose ONLY display fields (never secrets).
 // ─────────────────────────────────────────────────────────────────────────────
 

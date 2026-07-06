@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
 /**
- * Vitest config — unit vs integration split (D-G).
+ * Vitest config - unit vs integration split (D-G).
  *
  * Vitest 2.x has no `test.projects` key (that is a Vitest 3+ API). The
  * equivalent split here is driven by the VITEST_INTEGRATION env flag, wired via
@@ -12,7 +12,7 @@ import { defineConfig } from 'vitest/config';
  *                                plus *.integration.test.ts files and runs the
  *                                migrate-first globalSetup.
  *
- * The RLS integration tests connect as the unprivileged fxl_finders_app role
+ * The RLS integration tests connect as the unprivileged fxl_sales_app role
  * (NOT postgres/superuser) so RLS is actually exercised (D-G).
  */
 const isIntegration = process.env.VITEST_INTEGRATION === '1';
@@ -37,7 +37,7 @@ export default defineConfig({
       include: ['src/**/__tests__/**/*.test.ts'],
       exclude: ['node_modules/**', 'dist/**', 'test/rls/**', 'src/**/*.integration.test.ts'],
         // Phase 01 ships only RLS integration tests (run via test:integration).
-        // Unit suite is empty for now — don't fail the gate / future CI on it.
+        // Unit suite is empty for now - don't fail the gate / future CI on it.
         passWithNoTests: true,
       },
 });

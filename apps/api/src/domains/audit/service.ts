@@ -14,7 +14,7 @@ import { auditLog } from '../../db/schema.js';
  * FOR UPDATE inside the caller's transaction so concurrent inserts serialize.
  *
  * Pre-Phase-05 audit_log rows (written by Phases 02/03) carry '' placeholders and
- * are intentionally OUTSIDE this chain — new rows chain from a fresh genesis at the
+ * are intentionally OUTSIDE this chain - new rows chain from a fresh genesis at the
  * first Phase-05 write (the verify endpoint validates the chain of hash-bearing rows).
  */
 
@@ -84,11 +84,11 @@ export function verifyChain(entries: AuditChainRow[]): {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DB writer — append-only, hash-chained
+// DB writer - append-only, hash-chained
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type WriteAuditEntryInput = {
-  actorUserId: string; // Clerk user_id or 'system' (webhook path)
+  actorUserId: string;
   actorOrgId?: string | null;
   action: AuditAction;
   entityType: string;
@@ -120,12 +120,12 @@ export async function writeAuditEntry(
     .limit(1)
     .for('update')) as Array<{ entryHash: string }>;
 
-  // Genesis: '0'*64. Pre-Phase-05 rows have entry_hash='' — treat '' as "no chain
+  // Genesis: '0'*64. Pre-Phase-05 rows have entry_hash='' - treat '' as "no chain
   // yet" so the first hash-bearing row starts a fresh genesis chain.
   const prevHash = tail[0]?.entryHash && tail[0].entryHash.length === 64 ? tail[0].entryHash : '0'.repeat(64);
 
   // D8: entry_hash = sha256(prev_hash || canonical_json(row_without_hashes)). prev_hash
-  // is the PREPENDED argument — it is NOT a field inside the canonical row.
+  // is the PREPENDED argument - it is NOT a field inside the canonical row.
   const rowForHash = {
     actorUserId: entry.actorUserId,
     actorOrgId: entry.actorOrgId ?? null,

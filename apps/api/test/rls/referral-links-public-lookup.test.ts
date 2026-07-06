@@ -2,16 +2,16 @@
  * RLS integration test for the referral_links public-lookup policy (D-E).
  *
  * Proves the bug-distinguishing behavior: a valid `code` lookup under
- * fxl_finders_app with NO tenant context (app.current_org_id unset — exactly
+ * fxl_sales_app with NO tenant context (app.current_org_id unset - exactly
  * what the public /r/[code] handler does) returns the row. Without the
  * referral_links_public_lookup PERMISSIVE SELECT policy this would return 0 rows
  * and every valid code would 410 instead of 302.
  *
  * Also asserts the tenant dashboard query (by finder_id, WITH org context) stays
- * org-isolated — the public SELECT policy only widens code lookups, it must NOT
+ * org-isolated - the public SELECT policy only widens code lookups, it must NOT
  * leak org A's links into org B's dashboard.
  *
- * Connects as fxl_finders_app per D-G (postgres/admin BYPASS RLS → prove nothing).
+ * Connects as fxl_sales_app per D-G (postgres/admin BYPASS RLS → prove nothing).
  * Run with: pnpm --filter @fxl-sales/api test:integration
  */
 import postgres from 'postgres';
@@ -19,14 +19,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const TEST_DB_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgresql://fxl_finders_app:fxl_finders_app@localhost:5006/fxl_finders';
+  'postgresql://fxl_sales_app:fxl_sales_app@localhost:5006/fxl_sales';
 
 const CLEANUP_DB_URL =
   process.env.TEST_MIGRATE_DATABASE_URL ??
   process.env.MIGRATE_DATABASE_URL ??
-  'postgresql://postgres:postgres@localhost:5006/fxl_finders';
+  'postgresql://postgres:postgres@localhost:5006/fxl_sales';
 
-describe('RLS: referral_links public-lookup (as fxl_finders_app, D-E)', () => {
+describe('RLS: referral_links public-lookup (as fxl_sales_app, D-E)', () => {
   let sql: postgres.Sql;
   let cleanup: postgres.Sql;
 
@@ -56,7 +56,7 @@ describe('RLS: referral_links public-lookup (as fxl_finders_app, D-E)', () => {
     }
 
     // Seed FK parents + the referral_links row via the owner connection (RLS bypass
-    // is fine for SEEDING — the assertions below run as fxl_finders_app).
+    // is fine for SEEDING - the assertions below run as fxl_sales_app).
     const [app] = await cleanup`
       INSERT INTO apps (slug, name, publishable_key, secret_key_hash, secret_key_prefix,
                         webhook_signing_secret, allowed_redirect_hosts, status, created_by_user_id)
@@ -74,14 +74,14 @@ describe('RLS: referral_links public-lookup (as fxl_finders_app, D-E)', () => {
     productId = (product as { id: string }).id;
 
     const [finderA] = await cleanup`
-      INSERT INTO finders (org_id, clerk_user_id, clerk_org_id, status, display_name, contact_email)
+      INSERT INTO finders (org_id, account_id, workspace_id, status, display_name, contact_email)
       VALUES (${ORG_A}, ${'usr_pl_a_' + stamp}, ${'corg_pl_a_' + stamp}, 'approved', 'Finder A', 'a@pl.com')
       RETURNING id
     `;
     finderAId = (finderA as { id: string }).id;
 
     const [finderB] = await cleanup`
-      INSERT INTO finders (org_id, clerk_user_id, clerk_org_id, status, display_name, contact_email)
+      INSERT INTO finders (org_id, account_id, workspace_id, status, display_name, contact_email)
       VALUES (${ORG_B}, ${'usr_pl_b_' + stamp}, ${'corg_pl_b_' + stamp}, 'approved', 'Finder B', 'b@pl.com')
       RETURNING id
     `;
@@ -105,13 +105,13 @@ describe('RLS: referral_links public-lookup (as fxl_finders_app, D-E)', () => {
   });
 
   it('public lookup by code with NO tenant context returns 1 row (D-E: valid code → 302, not 410)', async () => {
-    // NO set_config('app.current_org_id', ...) — mirrors the JWT-less /r/[code] path.
+    // NO set_config('app.current_org_id', ...) - mirrors the JWT-less /r/[code] path.
     const rows = await sql`SELECT id, finder_id FROM referral_links WHERE code = ${CODE}`;
     expect(rows).toHaveLength(1);
     expect((rows[0] as { finder_id: string }).finder_id).toBe(finderAId);
   });
 
-  it('finder dashboard query (by finder_id, org B context) stays org-isolated — does NOT see org A link', async () => {
+  it('finder dashboard query (by finder_id, org B context) stays org-isolated - does NOT see org A link', async () => {
     const rows = await sql.begin(async (tx) => {
       await tx`SELECT set_config('app.current_org_id', ${ORG_B}, true)`;
       // org B's dashboard lists by its own finder_id; org A's link is invisible.
@@ -120,7 +120,7 @@ describe('RLS: referral_links public-lookup (as fxl_finders_app, D-E)', () => {
     expect(rows).toHaveLength(0);
   });
 
-  it('finder dashboard query (org A context) sees its own link — positive control', async () => {
+  it('finder dashboard query (org A context) sees its own link - positive control', async () => {
     const rows = await sql.begin(async (tx) => {
       await tx`SELECT set_config('app.current_org_id', ${ORG_A}, true)`;
       return tx`SELECT id FROM referral_links WHERE finder_id = ${finderAId}`;

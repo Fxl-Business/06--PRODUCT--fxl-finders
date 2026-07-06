@@ -7,7 +7,7 @@ import { finderSignupSchema } from './signup-schema.js';
 /**
  * Public (no-auth) finder signup router (Phase 03 T02, D-R).
  *
- * Mounted UNAUTHENTICATED in server.ts — a finder has no Clerk account at signup,
+ * Mounted UNAUTHENTICATED in server.ts - a finder has no product account at signup,
  * so no JWT is available.
  *
  * DB access (D-H + brief KEY reminder): `finders` is FORCE ROW LEVEL SECURITY
@@ -19,7 +19,7 @@ import { finderSignupSchema } from './signup-schema.js';
  * getAdminDb()" reminder is authoritative and supersedes it.)
  *
  * Honeypot (D-R): the validator accepts any `website` string; the DECISION is
- * made HERE — a non-empty website returns a silent 201 with NO DB insert so a
+ * made HERE - a non-empty website returns a silent 201 with NO DB insert so a
  * bot never learns it tripped the trap.
  */
 export const findersPublicRouter = new Hono();
@@ -27,18 +27,18 @@ export const findersPublicRouter = new Hono();
 findersPublicRouter.post('/signup', zValidator('json', finderSignupSchema), async (c) => {
   const body = c.req.valid('json');
 
-  // Honeypot decision (D-R) — non-empty website => silent 201, NO insert.
+  // Honeypot decision (D-R) - non-empty website => silent 201, NO insert.
   if (body.website && body.website.length > 0) {
     return c.json({ id: crypto.randomUUID(), status: 'pending' }, 201);
   }
 
-  const db = getAdminDb(); // BYPASSRLS — org_id='' placeholder is invisible to tenant RLS
+  const db = getAdminDb(); // BYPASSRLS - org_id='' placeholder is invisible to tenant RLS
   const [finder] = await db
     .insert(finders)
     .values({
-      orgId: '', // placeholder until admin approves + Clerk org created (A3)
-      clerkUserId: null, // backfilled when Clerk invite accepted (Phase 05 webhook)
-      clerkOrgId: null, // backfilled at admin approval (Clerk org created)
+      orgId: '',
+      accountId: null,
+      workspaceId: null,
       status: 'pending',
       displayName: body.displayName,
       contactEmail: body.contactEmail,

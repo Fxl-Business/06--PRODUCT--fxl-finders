@@ -7,11 +7,11 @@ import { classifyUa } from './ua-family';
 /**
  * Public referral redirect handler (Phase 04, T06; spec § 5 steps 1–8).
  *
- * Resolves a link by its bearer `code` with NO Clerk JWT / NO tenant context —
+ * Resolves a link by its bearer `code` with NO product JWT / NO tenant context -
  * succeeds only via the referral_links_public_lookup RLS policy (D-E). Inserts a
  * clicks row SYNCHRONOUSLY (split-RLS clicks_insert_public, WITH CHECK true),
  * then 302s to the destination with `?ref=<click_id>&fxl_sig=<hmac>` appended
- * and sets the fxl_ref cookie (HttpOnly; Secure; SameSite=Lax; 90d — D-R).
+ * and sets the fxl_ref cookie (HttpOnly; Secure; SameSite=Lax; 90d - D-R).
  *
  * Branch outcomes: not-found/revoked/expired → 410; host-mismatch/unparseable
  * destination → 500 (misconfig, no detail leaked); valid → 302.
@@ -104,7 +104,7 @@ export async function handleReferralClick(code: string, request: Request): Promi
   const utmMedium = url.searchParams.get('utm_medium');
   const utmCampaign = url.searchParams.get('utm_campaign');
 
-  // 7. INSERT clicks row SYNCHRONOUSLY (before redirect). No setTenantContext —
+  // 7. INSERT clicks row SYNCHRONOUSLY (before redirect). No setTenantContext -
   // clicks_insert_public WITH CHECK (true) allows the JWT-less insert (D-E/T03).
   await db.insert(clicks).values({
     clickId,
@@ -133,7 +133,7 @@ export async function handleReferralClick(code: string, request: Request): Promi
     '&fxl_sig=' +
     encodeURIComponent(fxlSig);
 
-  // 10/11. 302 + fxl_ref cookie (HttpOnly; Secure; SameSite=Lax; 90d — D-R).
+  // 10/11. 302 + fxl_ref cookie (HttpOnly; Secure; SameSite=Lax; 90d - D-R).
   return new Response(null, {
     status: 302,
     headers: {

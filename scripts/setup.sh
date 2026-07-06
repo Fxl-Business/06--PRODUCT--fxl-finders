@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup.sh — one-shot bootstrap for fxl-template projects.
+# setup.sh - one-shot bootstrap for fxl-template projects.
 #
 # What it does (in order):
 #   1. Preflight: Node 20+, pnpm 9+, Docker daemon running, git available.
@@ -33,7 +33,7 @@ cyan()   { printf "${CYAN}%s${RESET}\n" "$*"; }
 
 # --- option parsing ---
 # Default in new-project mode: wipe template .git and start a fresh history.
-# Reason: every new project gets its own repo — you don't want the template's
+# Reason: every new project gets its own repo - you don't want the template's
 # 30+ commits showing up in your project's git log. Pass --keep-git to override
 # (e.g., when you're testing the template repo itself).
 NO_DB=0
@@ -79,7 +79,7 @@ if grep -q '__APP_SLUG__' package.json 2>/dev/null; then
   MODE="new-project"
 fi
 
-cyan "=== fxl-template setup — $MODE mode ==="
+cyan "=== fxl-template setup - $MODE mode ==="
 echo
 
 # --- preflight ---
@@ -262,7 +262,7 @@ if [[ $MODE == "new-project" ]]; then
     cyan "==> Starting fresh git history"
     rm -rf .git
     git init -q
-    green "  ✓ fresh .git initialized — make your first commit when ready"
+    green "  ✓ fresh .git initialized - make your first commit when ready"
   fi
   echo
 fi
@@ -287,13 +287,6 @@ for app in apps/api apps/web apps/site apps/mobile; do
   fi
 done
 
-# Warn about FXL Local Sandbox placeholders
-if grep -rl 'FXL_LOCAL_SANDBOX_REPLACE_ME' apps/*/.env 2>/dev/null | head -1 > /dev/null; then
-  echo
-  yellow "  ⚠ Clerk keys are still placeholders (FXL_LOCAL_SANDBOX_REPLACE_ME)."
-  yellow "    Get the FXL Local Sandbox keys from your CTO, or wire your own Clerk dev app."
-  yellow "    See README → § Getting API keys."
-fi
 echo
 
 # --- pnpm install (root) ---
@@ -303,7 +296,7 @@ echo
 
 # --- pnpm install (apps/mobile, standalone scope) ---
 if [[ -f apps/mobile/package.json ]]; then
-  cyan "==> pnpm install (apps/mobile — standalone pnpm scope)"
+  cyan "==> pnpm install (apps/mobile - standalone pnpm scope)"
   (cd apps/mobile && pnpm install)
   echo
 fi
@@ -319,12 +312,7 @@ fi
 green "=== Setup complete ==="
 echo
 echo "Next steps:"
-if grep -rl 'FXL_LOCAL_SANDBOX_REPLACE_ME' apps/*/.env 2>/dev/null | head -1 > /dev/null; then
-  echo "  1. Wire the FXL Local Sandbox Clerk keys (see warning above)."
-  echo "  2. make migrate      # once you have a Drizzle schema"
-  echo "  3. make              # interactive app selector"
-else
-  echo "  1. make migrate      # once you have a Drizzle schema"
-  echo "  2. make              # interactive app selector"
-fi
+echo "  1. Fill Hub secrets in apps/api/.env and apps/web/.env."
+echo "  2. make migrate      # once you have a Drizzle schema"
+echo "  3. make              # interactive app selector"
 echo "  +  make doctor       # full FXL health check"

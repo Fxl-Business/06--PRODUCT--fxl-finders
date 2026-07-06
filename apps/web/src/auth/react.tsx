@@ -1,5 +1,4 @@
 /* eslint-disable react-refresh/only-export-components */
-import { ClerkProvider, OrganizationSwitcher, RedirectToSignIn, SignedIn, SignedOut, UserButton, useAuth as useClerkAuth, useClerk, useUser as useClerkUser } from '@clerk/clerk-react';
 import { createHubClient, type HubClient } from '@fxl-business/hub-sdk/client';
 import { LogOut } from 'lucide-react';
 import {
@@ -13,7 +12,7 @@ import {
 } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getRoleFromHubClaims, parseJwtPayload, type AppRole } from './claims';
-import { getHubBffBasePath, loadHubBrowserConfig, loadWebAuthProvider } from './provider';
+import { getHubBffBasePath, loadHubBrowserConfig } from './provider';
 
 type AuthProfile = {
   isLoaded: boolean;
@@ -42,9 +41,6 @@ type HubAuthState = AuthProfile & {
 
 type AccessTokenHook = () => { getToken: () => Promise<string | null> };
 type LogoutHook = () => () => Promise<void>;
-
-const webAuthProvider = loadWebAuthProvider(import.meta.env);
-const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 function readString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
@@ -177,31 +173,6 @@ function HubAuthProvider({ children }: { children: ReactNode }) {
   return <HubAuthContext.Provider value={value}>{children}</HubAuthContext.Provider>;
 }
 
-function ClerkAppAuthProvider({ children }: { children: ReactNode }) {
-  if (!clerkPublishableKey) {
-    console.warn(
-      '[fxl-sales] VITE_CLERK_PUBLISHABLE_KEY not set. Edit apps/web/.env to add the key.',
-    );
-  }
-
-  return (
-    <ClerkProvider publishableKey={clerkPublishableKey ?? 'pk_test_missing'}>
-      {children}
-    </ClerkProvider>
-  );
-}
-
-function ClerkProtected({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <SignedIn>{children}</SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
-}
-
 function HubProtected({ children }: { children: ReactNode }) {
   const { isLoaded, isSignedIn, login } = useHubAuthContext();
 
@@ -218,27 +189,9 @@ function HubProtected({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-function useClerkAccessToken(): { getToken: () => Promise<string | null> } {
-  const { getToken } = useClerkAuth();
-  return { getToken };
-}
-
 function useHubAccessToken() {
   const { getToken } = useHubAuthContext();
   return { getToken };
-}
-
-function useClerkProfile(): AuthProfile {
-  const { isLoaded, isSignedIn, user } = useClerkUser();
-  const role = user?.publicMetadata?.role as AppRole | undefined;
-  return {
-    isLoaded,
-    isSignedIn: isSignedIn ?? false,
-    role,
-    name: user?.fullName ?? undefined,
-    email: user?.primaryEmailAddress?.emailAddress,
-    avatarUrl: user?.imageUrl,
-  };
 }
 
 function useHubProfile(): AuthProfile {
@@ -247,31 +200,9 @@ function useHubProfile(): AuthProfile {
   return { isLoaded, isSignedIn, role, name, email, avatarUrl, workspaceName };
 }
 
-function useClerkLogout(): () => Promise<void> {
-  const { signOut } = useClerk();
-  return async () => {
-    await signOut();
-  };
-}
-
 function useHubLogout(): () => Promise<void> {
   const { logout } = useHubAuthContext();
   return logout;
-}
-
-function ClerkUserControls() {
-  return (
-    <>
-      <OrganizationSwitcher
-        appearance={{
-          elements: {
-            rootBox: 'flex items-center',
-          },
-        }}
-      />
-      <UserButton afterSignOutUrl="/" />
-    </>
-  );
 }
 
 function HubUserControls() {
@@ -310,10 +241,9 @@ function HubUserControls() {
   );
 }
 
-export const AppAuthProvider = webAuthProvider === 'hub' ? HubAuthProvider : ClerkAppAuthProvider;
-export const Protected = webAuthProvider === 'hub' ? HubProtected : ClerkProtected;
-export const useAccessToken: AccessTokenHook =
-  webAuthProvider === 'hub' ? useHubAccessToken : useClerkAccessToken;
-export const useAuthProfile = webAuthProvider === 'hub' ? useHubProfile : useClerkProfile;
-export const useLogout: LogoutHook = webAuthProvider === 'hub' ? useHubLogout : useClerkLogout;
-export const UserControls = webAuthProvider === 'hub' ? HubUserControls : ClerkUserControls;
+export const AppAuthProvider = HubAuthProvider;
+export const Protected = HubProtected;
+export const useAccessToken: AccessTokenHook = useHubAccessToken;
+export const useAuthProfile = useHubProfile;
+export const useLogout: LogoutHook = useHubLogout;
+export const UserControls = HubUserControls;

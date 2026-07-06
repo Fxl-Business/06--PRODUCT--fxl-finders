@@ -206,7 +206,7 @@
       "fields": {
         "phone": "Phone",
         "pixKeyType": "PIX key type",
-        "orgId": "Organization (Clerk)",
+        "orgId": "Organization",
         "approvedBy": "Approved by"
       },
       "actions": {
@@ -394,7 +394,7 @@
       "pageValid": "Page intact",
       "pageBroken": "Page compromised",
       "chainValid": "Chain intact",
-      "chainBroken": "Chain compromised — break at",
+      "chainBroken": "Chain compromised - break at",
       "verifyFullChain": "Verify full chain",
       "systemActor": "system",
       "pageN": "Page {{n}}",

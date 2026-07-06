@@ -1,8 +1,6 @@
 import { and, desc, eq, lt, sql } from 'drizzle-orm';
-import { clerkClient } from '../../lib/clerk.js';
 import { getAdminDb } from '../../db/client.js';
 import { auditLog, finders } from '../../db/schema.js';
-import { getAuthProviderName } from '../../middleware/app-auth.js';
 
 /**
  * Admin finders service (Phase 03 T03).
@@ -10,8 +8,6 @@ import { getAuthProviderName } from '../../middleware/app-auth.js';
  * Admin-vs-RLS model (D-C): `finders` is FORCE ROW LEVEL SECURITY. These
  * cross-tenant admin operations use the dedicated BYPASSRLS connection
  * getAdminDb() and NEVER call setTenantContext. Every mutation writes audit_log.
- *
- * clerkClient is imported from ../../lib/clerk.js (D-I) — NOT from '@clerk/backend'.
  */
 
 export type FinderStatus = 'pending' | 'approved' | 'suspended';
@@ -20,7 +16,7 @@ export type FinderRow = typeof finders.$inferSelect;
 
 /**
  * Public-facing finder row. CPF is masked (last 3 digits only) so the admin list
- * never leaks the full document. clerk_* / org_id / approved_by_user_id are
+ * never leaks the full document. Account/workspace ids are
  * resolved or rendered via the raw-ID fallback on the frontend.
  */
 export type AdminFinderRow = Omit<FinderRow, 'cpf'> & { cpfMasked: string | null };
@@ -70,7 +66,7 @@ export async function getFinder(finderId: string): Promise<AdminFinderRow | null
 
 export class FinderStateError extends Error {
   constructor(
-    public readonly code: 'not_found' | 'invalid_state' | 'invite_send_failed',
+    public readonly code: 'not_found' | 'invalid_state',
     message?: string,
   ) {
     super(message ?? code);
@@ -79,14 +75,11 @@ export class FinderStateError extends Error {
 }
 
 /**
- * Approve a finder — idempotent (D-R WARN). In one transaction:
+ * Approve a finder - idempotent (D-R WARN). In one transaction:
  *   1. SELECT ... FOR UPDATE locks the row for concurrent double-clicks.
- *   2. Idempotency: already-approved → no-op return; non-pending non-approved → invalid_state.
- *   3. Create the Clerk org ONLY when clerk_org_id is empty (no duplicate org on retry).
- *   4. Flip status pending→approved + backfill org ids + approval audit fields.
- *   5. Write audit_log.
- *   6. Send the Clerk invite; an invite failure throws invite_send_failed AFTER the
- *      org/status are persisted, so a retry re-uses the org and re-attempts the invite.
+ *   2. Idempotency: already-approved -> no-op return; non-pending non-approved -> invalid_state.
+ *   3. Flip status pending -> approved + persist the Hub workspace id.
+ *   4. Write audit_log.
  */
 export async function approveFinder(
   finderId: string,
@@ -94,7 +87,7 @@ export async function approveFinder(
 ): Promise<{ id: string; status: FinderStatus }> {
   const db = getAdminDb();
 
-  // Phase 1 of the work — tx-bound state changes (org + status + audit).
+  // Phase 1 of the work - tx-bound state changes (org + status + audit).
   const result = await db.transaction(async (tx) => {
     const [finder] = await tx
       .select()
@@ -109,34 +102,17 @@ export async function approveFinder(
       if (finder.status === 'approved') {
         return { finder, alreadyApproved: true as const };
       }
-      throw new FinderStateError('invalid_state'); // e.g. suspended → approve not allowed
-    }
-
-    const authProvider = getAuthProviderName();
-
-    // Create Clerk org ONLY if missing (idempotency). In Hub mode, provisioning
-    // is operator-owned; use a deterministic workspace id the operator can
-    // preserve in the Hub.
-    let clerkOrgId = finder.clerkOrgId;
-    const hubWorkspaceId = finder.orgId || finder.id;
-    if (authProvider === 'clerk' && !clerkOrgId) {
-      const org = await clerkClient.organizations.createOrganization({
-        name: finder.displayName,
-        createdBy: adminUserId,
-      });
-      clerkOrgId = org.id;
-    }
-    const approvedOrgId = authProvider === 'hub' ? hubWorkspaceId : clerkOrgId;
-    if (!approvedOrgId) {
       throw new FinderStateError('invalid_state');
     }
+
+    const workspaceId = (finder.workspaceId ?? finder.orgId) || finder.id;
 
     await tx
       .update(finders)
       .set({
         status: 'approved',
-        clerkOrgId,
-        orgId: approvedOrgId,
+        workspaceId,
+        orgId: workspaceId,
         approvedAt: new Date(),
         approvedByUserId: adminUserId,
         updatedAt: new Date(),
@@ -148,10 +124,7 @@ export async function approveFinder(
       action: 'finder.approved',
       entityType: 'finder',
       entityId: finder.id,
-      afterJsonb:
-        authProvider === 'hub'
-          ? { hubWorkspaceId, provisioning: 'operator_owned' }
-          : { clerkOrgId },
+      afterJsonb: { workspaceId, provisioning: 'operator_owned' },
       prevHash: sql`''`,
       entryHash: sql`''`,
     });
@@ -159,39 +132,23 @@ export async function approveFinder(
     return {
       finder: {
         ...finder,
-        clerkOrgId,
-        orgId: approvedOrgId,
+        workspaceId,
+        orgId: workspaceId,
       },
       alreadyApproved: false as const,
-      authProvider,
     };
   });
 
-  // Already approved → idempotent no-op, no second invite.
+  // Already approved -> idempotent no-op.
   if (result.alreadyApproved) {
     return { id: result.finder.id, status: 'approved' };
-  }
-
-  if (result.authProvider === 'hub') {
-    return { id: result.finder.id, status: 'approved' };
-  }
-
-  // Send the invite OUTSIDE the tx — org + status are already committed (WARN).
-  try {
-    await clerkClient.invitations.createInvitation({
-      emailAddress: result.finder.contactEmail,
-      publicMetadata: { role: 'finder', finderId: result.finder.id },
-      redirectUrl: process.env.CLERK_FINDER_REDIRECT_URL ?? 'http://localhost:8006/finder/dashboard',
-    });
-  } catch {
-    throw new FinderStateError('invite_send_failed');
   }
 
   return { id: result.finder.id, status: 'approved' };
 }
 
 /**
- * Suspend a finder — state-guarded (D-R). Only an approved finder can be
+ * Suspend a finder - state-guarded (D-R). Only an approved finder can be
  * suspended; an already-suspended finder is an idempotent no-op; a pending
  * finder throws invalid_state.
  */

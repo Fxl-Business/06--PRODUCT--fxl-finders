@@ -19,12 +19,12 @@ import type { FinderRow } from '@/admin/types';
 import { useApproveFinder, useFinder, useSuspendFinder } from './hooks/useFinders';
 
 /**
- * Raw Clerk IDs (user_*, org_*) must NEVER render as plain text (FXL contract).
+ * Raw provider IDs must NEVER render as plain text (FXL contract).
  * No display-name resolution exists for these yet (D-R deferral), so render via
  * the mandated font-mono fallback class.
  */
 function RawId({ value }: { value: string | null }) {
-  if (!value) return <span className="text-muted-foreground">—</span>;
+  if (!value) return <span className="text-muted-foreground">-</span>;
   return <span className="font-mono text-xs text-muted-foreground">{value}</span>;
 }
 
@@ -95,15 +95,15 @@ export function AdminFinderDetailPage() {
       <Card>
         <CardContent className="grid grid-cols-1 gap-6 p-6 sm:grid-cols-2 lg:grid-cols-3">
           <Field label={t('admin.finders.columns.email')}>{f.contactEmail}</Field>
-          <Field label={t('admin.finders.columns.cpf')}>{f.cpfMasked ?? '—'}</Field>
-          <Field label={t('admin.finders.columns.pixKey')}>{f.pixKey ?? '—'}</Field>
-          <Field label={t('admin.finders.fields.phone')}>{f.phone ?? '—'}</Field>
-          <Field label={t('admin.finders.fields.pixKeyType')}>{f.pixKeyType ?? '—'}</Field>
+          <Field label={t('admin.finders.columns.cpf')}>{f.cpfMasked ?? '-'}</Field>
+          <Field label={t('admin.finders.columns.pixKey')}>{f.pixKey ?? '-'}</Field>
+          <Field label={t('admin.finders.fields.phone')}>{f.phone ?? '-'}</Field>
+          <Field label={t('admin.finders.fields.pixKeyType')}>{f.pixKeyType ?? '-'}</Field>
           <Field label={t('admin.finders.columns.createdAt')}>
             {new Date(f.createdAt).toLocaleString('pt-BR')}
           </Field>
           <Field label={t('admin.finders.fields.orgId')}>
-            <RawId value={f.clerkOrgId ?? (f.orgId || null)} />
+            <RawId value={f.workspaceId ?? (f.orgId || null)} />
           </Field>
           <Field label={t('admin.finders.fields.approvedBy')}>
             <RawId value={f.approvedByUserId} />
@@ -120,14 +120,14 @@ export function AdminFinderDetailPage() {
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <Field label={t('admin.finders.lgpd.essential')}>
-            {f.lgpdConsentEssential ? '✓' : '—'}
+            {f.lgpdConsentEssential ? '✓' : '-'}
           </Field>
           <Field label={t('admin.finders.lgpd.marketing')}>
-            {f.lgpdConsentMarketing ? '✓' : '—'}
+            {f.lgpdConsentMarketing ? '✓' : '-'}
           </Field>
-          <Field label={t('admin.finders.lgpd.version')}>{f.lgpdConsentVersion || '—'}</Field>
+          <Field label={t('admin.finders.lgpd.version')}>{f.lgpdConsentVersion || '-'}</Field>
           <Field label={t('admin.finders.lgpd.consentedAt')}>
-            {f.lgpdConsentedAt ? new Date(f.lgpdConsentedAt).toLocaleString('pt-BR') : '—'}
+            {f.lgpdConsentedAt ? new Date(f.lgpdConsentedAt).toLocaleString('pt-BR') : '-'}
           </Field>
         </CardContent>
       </Card>

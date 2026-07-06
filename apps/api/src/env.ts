@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 // Load apps/api/.env first (committed dev defaults from .env.dev.example),
 // then apps/api/.env.local on top (gitignored per-dev override). Path
-// resolves identically in dev (src/env.ts) and prod (dist/env.js) — both
+// resolves identically in dev (src/env.ts) and prod (dist/env.js) - both
 // sit one dir below apps/api.
 const baseDir = resolve(import.meta.dirname, '..');
 config({ path: resolve(baseDir, '.env') });
@@ -29,13 +29,8 @@ const schema = z.object({
   CORS_ORIGIN: z.string().url().default('http://localhost:8006'),
   DATABASE_URL: emptyToUndefined,
   // Admin / cross-tenant DB connection (D-C). Authenticates as the BYPASSRLS
-  // role (fxl_finders_admin). Backend-only — NEVER VITE_-prefixed.
+  // role (fxl_sales_admin). Backend-only - NEVER VITE_-prefixed.
   ADMIN_DATABASE_URL: emptyToUndefined,
-  CLERK_SECRET_KEY: emptyToUndefined,
-  CLERK_PUBLISHABLE_KEY: emptyToUndefined,
-  // Clerk webhook (svix) signing secret for the user.created seller backfill (Phase 05 T07).
-  CLERK_WEBHOOK_SIGNING_SECRET: emptyToUndefined,
-  AUTH_PROVIDER: z.enum(['clerk', 'hub']).default('clerk'),
   FXL_HUB_API_URL: emptyToUndefinedUrl,
   FXL_HUB_PUBLISHABLE_KEY: emptyToUndefined,
   FXL_HUB_SECRET_KEY: emptyToUndefined,

@@ -6,7 +6,7 @@ export default {
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5006/fxl_finders',
+    url: process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5006/fxl_sales',
   },
   strict: true,
   verbose: true,

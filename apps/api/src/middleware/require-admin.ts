@@ -5,7 +5,7 @@ import type { MiddlewareHandler } from 'hono';
  *
  * Reads `userRole` off the Hono context, which `appAuthMiddleware` already extracted
  * from the verified token. There is
- * NO per-request `clerkClient.users.getUser()` call (D-B).
+ * NO per-request external user lookup (D-B).
  *
  * MUST run AFTER `appAuthMiddleware` so `userRole` is populated. Returns 403
  * for any non-admin role, including `undefined`.

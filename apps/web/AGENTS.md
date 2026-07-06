@@ -1,58 +1,56 @@
-# apps/web — agent guide
+# apps/web - agent guide
 
 ## Stack
 
-React 18 + Vite + TypeScript + Tailwind + shadcn/ui (manual copy, no CLI dependency) + Clerk + TanStack Query + React Router v6 + react-i18next.
+React 18, Vite, TypeScript, Tailwind, shadcn/ui components, FXL Hub SDK, TanStack Query, React Router v6, and react-i18next.
 
 ## Layout
 
-```
+```text
 src/
 ├── main.tsx               # entrypoint: createRoot + <App />
-├── App.tsx                # ClerkProvider + QueryClient + RouterProvider
-├── router.tsx             # createBrowserRouter, route guards
-├── index.css              # Tailwind directives + CSS variables (light/dark tokens)
+├── App.tsx                # app providers + RouterProvider
+├── router.tsx             # createBrowserRouter and route guards
+├── index.css              # Tailwind directives + CSS variables
+├── auth/                  # Hub browser client and React auth adapters
 ├── i18n/                  # react-i18next setup, PT-BR + EN bundles
 ├── lib/
-│   ├── api-client.ts      # apiFetch — TanStack Query target
-│   ├── displayNames.ts    # userLabel / orgLabel — NEVER render raw Clerk IDs
+│   ├── api-client.ts      # apiFetch and token injection
+│   ├── displayNames.ts    # userLabel and orgLabel helpers
 │   └── utils.ts           # cn() class merger
 ├── components/
 │   ├── layout/            # AppShell, Sidebar, TopBar
-│   └── ui/                # shadcn baseline: button, card, input, label,
-│                          # skeleton, kpi-card, empty-state
-└── pages/                 # Home, Items, Config
+│   └── ui/                # shadcn baseline components
+└── pages/                 # route pages
 ```
 
 ## Rules
 
-1. **Empty/loading/loaded triad.** Every data view follows:
-   - `isLoading === true` → `<Skeleton />` (never empty state, never content)
-   - `!isLoading && empty` → `<EmptyState />`
-   - `!isLoading && data` → content
-2. **KPICard for all metrics.** Use `<KPICard title value icon isLoading colorScheme>`. Don't roll your own metric tile.
-3. **Named exports only.** No `export default`.
-4. **No raw Clerk IDs.** Always go through `userLabel` / `orgLabel`. Style fallback with `font-mono text-xs text-muted-foreground`.
-5. **TanStack Query for server state.** Mutations invalidate every queryKey whose underlying data could change. Use `invalidateQueries`, never `resetQueries`.
-6. **Array selects safe.** `select: (data) => Array.isArray(data) ? data : []` — never crash on `undefined`.
-7. **i18n primary PT-BR.** Add new strings to both `pt-BR.json` and `en.json`.
-8. **No `any`.** Use `unknown` + type guards. ESLint enforces this.
+1. Every data view follows the empty, loading, loaded triad.
+2. `isLoading === true` renders `<Skeleton />`.
+3. `!isLoading && empty` renders `<EmptyState />`.
+4. `!isLoading && data` renders content.
+5. Use `<KPICard title value icon isLoading colorScheme>` for all metrics.
+6. Use named exports only.
+7. Never render raw account or workspace ids in customer-facing UI.
+8. TanStack Query owns server state.
+9. Mutations invalidate every query key whose underlying data could change.
+10. Use `select: (data) => Array.isArray(data) ? data : []` for array selects.
+11. Add new strings to both `pt-BR.json` and `en.json`.
+12. Use `unknown` plus type guards instead of `any`.
 
-## Adding shadcn components
-
-The template ships baseline components in `src/components/ui/` copied from shadcn templates. To add more:
+## Adding shadcn Components
 
 ```bash
-# Either copy from shadcn docs into src/components/ui/ + install peer deps,
-# or use the shadcn CLI (configured via components.json):
 pnpm dlx shadcn@latest add <name>
 ```
 
 ## Commands
 
 ```bash
-pnpm dev              # vite (port 8006)
-pnpm build            # tsc --noEmit + vite build
-pnpm type-check       # tsc --noEmit
-pnpm lint             # eslint src/
+pnpm dev
+pnpm build
+pnpm type-check
+pnpm lint
+pnpm test
 ```

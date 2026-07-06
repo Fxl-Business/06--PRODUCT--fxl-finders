@@ -12,7 +12,6 @@ import { linksRouter } from './domains/links/routes.js';
 import { finderRouter } from './domains/finder/routes.js';
 import { hmacVerifyMiddleware } from './domains/conversions/hmac-middleware.js';
 import { conversionsAdminRouter, conversionsRouter } from './domains/conversions/routes.js';
-import { clerkWebhookRouter } from './domains/sellers/clerk-webhook.js';
 import { commissionsAdminRouter, commissionsRouter } from './domains/commissions/routes.js';
 import { payoutsAdminRouter, payoutsRouter } from './domains/payouts/routes.js';
 import { auditRouter } from './domains/audit/routes.js';
@@ -37,15 +36,10 @@ if (authBff) {
 // RLS; org_id='' placeholder is invisible to the tenant policy).
 app.route('/api/v1/finders', findersPublicRouter);
 
-// ── Clerk user.created webhook (Phase 05 T07) ────────────────────────────────
-// svix verifies the signature on the raw body. NO clerkAuthMiddleware (Clerk calls
-// it). MUST be registered before any body-parse middleware on this path.
-app.route('/api/v1/webhooks/clerk', clerkWebhookRouter);
-
 // ── Inbound conversion webhook (Phase 05 T06) ────────────────────────────────
 // hmacVerifyMiddleware runs BEFORE body parse on the webhook POST paths (D-O/D-L).
 // NOTE: it is NOT applied to /api/v1/conversions/admin (admin reconciliation read,
-// gated by requireAdmin) — that router is mounted separately below.
+// gated by requireAdmin) - that router is mounted separately below.
 app.use('/api/v1/conversions', hmacVerifyMiddleware);
 app.use('/api/v1/conversions/refund', hmacVerifyMiddleware);
 app.route('/api/v1/conversions', conversionsRouter);

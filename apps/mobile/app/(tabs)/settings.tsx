@@ -1,11 +1,7 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth, useUser } from '@clerk/clerk-expo';
 
 export default function SettingsTab() {
-  const { signOut } = useAuth();
-  const { user } = useUser();
-
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['left', 'right']}>
       <View className="p-6 gap-6">
@@ -14,18 +10,8 @@ export default function SettingsTab() {
         </View>
 
         <View className="bg-card border border-border rounded-xl p-5">
-          <Text className="text-sm text-muted-foreground">Logado como</Text>
-          <Text className="mt-1 text-base font-medium text-foreground">
-            {user?.emailAddresses?.[0]?.emailAddress ?? user?.id ?? '—'}
-          </Text>
+          <Text className="text-sm text-muted-foreground">Autenticação gerenciada pelo Hub.</Text>
         </View>
-
-        <TouchableOpacity
-          onPress={() => signOut()}
-          className="bg-card border border-border rounded-lg py-3 items-center"
-        >
-          <Text className="text-foreground font-semibold">Sair</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

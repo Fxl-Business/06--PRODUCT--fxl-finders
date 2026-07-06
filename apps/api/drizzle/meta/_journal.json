@@ -43,6 +43,13 @@
       "when": 1780006825197,
       "tag": "0006_fxl_financiero_seed",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783369740000,
+      "tag": "0007_hub_identity_columns",
+      "breakpoints": true
     }
   ]
 }

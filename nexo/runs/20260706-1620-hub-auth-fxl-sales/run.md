@@ -6,14 +6,16 @@ Feature plan: `nexo/plans/20260706-hub-auth-fxl-sales/00-OVERVIEW.md`
 
 ## Frame
 
-Integrate the product with FXL Hub for `product.fxl-sales`, migrate off Clerk through reversible flags, and rename app identity to `fxl-sales` while keeping the repository folder name unchanged.
+Integrate the product with FXL Hub for `product.fxl-sales`.
+Rename app identity to `fxl-sales` while keeping the repository folder name unchanged.
+Remove the retired auth provider path entirely.
 
 ## Slice Log
 
 - 01-identity-and-config: completed.
 - 02-api-hub-bff-auth: completed.
 - 03-web-hub-client-auth: completed.
-- 04-clerk-operational-cutover: completed.
+- 04-operational-cutover: completed.
 - 05-rename-visible-identity: completed.
 - 06-verify-capture: completed.
 
@@ -32,4 +34,4 @@ Integrate the product with FXL Hub for `product.fxl-sales`, migrate off Clerk th
 
 - Browser visual verification was blocked because no in-app browser backend was available in this Codex session.
 - The root folder name remains unchanged by request.
-- Existing `fxl_finders_*` database names and roles remain unchanged because renaming them is an ops/schema migration.
+- Existing local database names and roles remain unchanged because renaming them is an ops migration.

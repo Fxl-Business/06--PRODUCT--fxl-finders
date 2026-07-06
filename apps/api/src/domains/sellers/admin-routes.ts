@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { createSellerAndInvite, listSellers, setSellerStatus } from './admin-service.js';
 
 /**
- * Admin sellers routes (Phase 03 T04). Mounted under the clerkAuthMiddleware +
- * requireAdmin admin group in server.ts — do NOT re-apply auth here.
+ * Admin sellers routes (Phase 03 T04). Mounted under appAuthMiddleware +
+ * requireAdmin admin group in server.ts - do NOT re-apply auth here.
  *
  * Uses getAdminDb() via the service layer; setTenantContext is NEVER called.
  */

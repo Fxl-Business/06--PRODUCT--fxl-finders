@@ -1,9 +1,7 @@
-import { loadHubConfigFromEnv } from '@fxl-business/hub-sdk';
 import type { HubSdkConfig } from '@fxl-business/hub-sdk';
 import { createHubBff, requireHubAuth } from '@fxl-business/hub-sdk/server';
 import type { MiddlewareHandler } from 'hono';
-import { loadAuthProviderConfig } from '../config/auth-provider.js';
-import { clerkAuthMiddleware } from './auth.js';
+import { tryLoadHubAuthConfig } from '../config/auth-provider.js';
 
 type EnvLike = Record<string, string | undefined>;
 
@@ -27,9 +25,15 @@ declare module 'hono' {
   }
 }
 
-const authProviderConfig = loadAuthProviderConfig(process.env);
-const hubSdkConfig: HubSdkConfig | null =
-  authProviderConfig.provider === 'hub' ? loadHubConfigFromEnv(process.env) : null;
+const hubAuthConfig = tryLoadHubAuthConfig(process.env);
+const hubSdkConfig: HubSdkConfig | null = hubAuthConfig
+  ? {
+      apiUrl: hubAuthConfig.apiUrl,
+      publishableKey: hubAuthConfig.publishableKey,
+      secretKey: hubAuthConfig.secretKey,
+      audience: hubAuthConfig.audience,
+    }
+  : null;
 
 export function getHubLegacyAuthContext(auth: MinimalHubAuthContext): {
   userId: string;
@@ -63,7 +67,7 @@ export function resolveHubRedirectUri(envBag: EnvLike): string | undefined {
     return `http://localhost:${envBag.PORT ?? '3006'}/auth/callback`;
   }
 
-  throw new Error('FXL_HUB_REDIRECT_URI is required when AUTH_PROVIDER=hub in production');
+  throw new Error('FXL_HUB_REDIRECT_URI is required for FXL Hub auth in production');
 }
 
 export function resolveHubPostLoginRedirect(envBag: EnvLike): string {
@@ -86,24 +90,16 @@ export function resolveHubPostLoginErrorRedirect(envBag: EnvLike): string {
   return url.toString();
 }
 
-export function getAuthProviderName() {
-  return authProviderConfig.provider;
-}
-
 export function getHubSdkConfig() {
   return hubSdkConfig;
 }
 
 const hubAuthMiddleware =
-  hubSdkConfig && authProviderConfig.provider === 'hub'
-    ? requireHubAuth(hubSdkConfig, { audience: authProviderConfig.audience })
+  hubSdkConfig && hubAuthConfig
+    ? requireHubAuth(hubSdkConfig, { audience: hubAuthConfig.audience })
     : null;
 
 export const appAuthMiddleware: MiddlewareHandler = async (c, next) => {
-  if (authProviderConfig.provider === 'clerk') {
-    return clerkAuthMiddleware(c, next);
-  }
-
   if (!hubAuthMiddleware || !hubSdkConfig) {
     return c.json({ error: 'unavailable', code: 'hub_auth_not_configured' }, 503);
   }
@@ -116,7 +112,7 @@ export const appAuthMiddleware: MiddlewareHandler = async (c, next) => {
       return;
     }
 
-    if (!hasHubCoreEntitlement(hubAuth, authProviderConfig.coreModule)) {
+    if (!hubAuthConfig || !hasHubCoreEntitlement(hubAuth, hubAuthConfig.coreModule)) {
       blockedResponse = c.json({ error: 'payment_required', code: 'missing_entitlement' }, 402);
       return;
     }

@@ -8,7 +8,7 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3006
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/fxl_finders
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/fxl_sales
       - CORS_ORIGIN=http://localhost:8006
     env_file:
       - apps/api/.env
@@ -22,12 +22,12 @@ services:
     ports:
       # Host port is parameterized so multiple FXL projects can run their DBs
       # simultaneously (each project picks a different port via the number-based
-      # convention — see scripts/setup.sh). Container port stays 5432.
+      # convention - see scripts/setup.sh). Container port stays 5432.
       - "5006:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=fxl_finders
+      - POSTGRES_DB=fxl_sales
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

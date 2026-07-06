@@ -4,7 +4,7 @@
  * Proves the split-INSERT pattern: the app role can INSERT a conversion/commission
  * WITHOUT a tenant context (webhook path, conversions_insert_webhook WITH CHECK(true)),
  * and a finder reading under setTenantContext sees ONLY its own org's rows (positive
- * control + cross-org zero). Connects as the unprivileged fxl_finders_app role (D-G).
+ * control + cross-org zero). Connects as the unprivileged fxl_sales_app role (D-G).
  */
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
@@ -15,11 +15,11 @@ import { conversions } from '../../src/db/schema.js';
 
 const APP_DB_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgresql://fxl_finders_app:fxl_finders_app@localhost:5006/fxl_finders';
+  'postgresql://fxl_sales_app:fxl_sales_app@localhost:5006/fxl_sales';
 const SEED_DB_URL =
   process.env.TEST_MIGRATE_DATABASE_URL ??
   process.env.MIGRATE_DATABASE_URL ??
-  'postgresql://postgres:postgres@localhost:5006/fxl_finders';
+  'postgresql://postgres:postgres@localhost:5006/fxl_sales';
 
 describe('conversions/commissions split-RLS (D10/D-G)', () => {
   let appClient: postgres.Sql;
@@ -56,7 +56,7 @@ describe('conversions/commissions split-RLS (D10/D-G)', () => {
       VALUES (${appId}, ${'p' + stamp}, 'P', 'active') RETURNING id`;
     productId = (prod as { id: string }).id;
     const [fa] = await seed`
-      INSERT INTO finders (org_id, clerk_user_id, clerk_org_id, status, display_name, contact_email)
+      INSERT INTO finders (org_id, account_id, workspace_id, status, display_name, contact_email)
       VALUES (${ORG_A}, ${'usr_ccr_a_' + stamp}, ${'corg_ccr_a_' + stamp}, 'approved', 'A', 'a@ccr.com') RETURNING id`;
     finderAId = (fa as { id: string }).id;
 
@@ -79,10 +79,10 @@ describe('conversions/commissions split-RLS (D10/D-G)', () => {
   });
 
   it('app role can INSERT a conversion with NO tenant context (webhook split-INSERT)', async () => {
-    // No setTenantContext call — conversions_insert_webhook WITH CHECK(true) permits the
+    // No setTenantContext call - conversions_insert_webhook WITH CHECK(true) permits the
     // write. NOTE: under FORCE RLS, `INSERT ... RETURNING` re-reads the new row through the
     // SELECT policy, which (with no tenant context) would filter it and surface as an RLS
-    // error — so the webhook split-INSERT path deliberately does NOT use RETURNING here.
+    // error - so the webhook split-INSERT path deliberately does NOT use RETURNING here.
     // The runtime ingest uses the BYPASSRLS admin connection anyway (D-C). We assert the
     // INSERT itself is permitted, then confirm via the seed connection.
     await appDb.insert(conversions).values({

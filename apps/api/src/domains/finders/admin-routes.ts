@@ -9,10 +9,10 @@ import {
 } from './admin-service.js';
 
 /**
- * Admin finders routes (Phase 03 T03). Mounted under the clerkAuthMiddleware +
- * requireAdmin admin group in server.ts — do NOT re-apply auth here.
+ * Admin finders routes (Phase 03 T03). Mounted under appAuthMiddleware +
+ * requireAdmin admin group in server.ts - do NOT re-apply auth here.
  *
- * Uses getAdminDb() (BYPASSRLS) via the service layer — finders is FORCE RLS and
+ * Uses getAdminDb() (BYPASSRLS) via the service layer - finders is FORCE RLS and
  * these are cross-tenant admin reads/writes (D-C). NEVER setTenantContext.
  */
 export const findersAdminRouter = new Hono();

@@ -206,7 +206,7 @@
       "fields": {
         "phone": "Telefone",
         "pixKeyType": "Tipo de chave PIX",
-        "orgId": "Organização (Clerk)",
+        "orgId": "Organização",
         "approvedBy": "Aprovado por"
       },
       "actions": {
@@ -394,7 +394,7 @@
       "pageValid": "Página íntegra",
       "pageBroken": "Página comprometida",
       "chainValid": "Cadeia íntegra",
-      "chainBroken": "Cadeia comprometida — quebra em",
+      "chainBroken": "Cadeia comprometida - quebra em",
       "verifyFullChain": "Verificar cadeia completa",
       "systemActor": "sistema",
       "pageN": "Página {{n}}",

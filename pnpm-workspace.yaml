@@ -6,6 +6,5 @@ overrides:
   '@types/react': '18.2.79'
   '@types/react-dom': '^18.3.5'
 allowBuilds:
-  '@clerk/shared': false
   esbuild: true
   sharp: true

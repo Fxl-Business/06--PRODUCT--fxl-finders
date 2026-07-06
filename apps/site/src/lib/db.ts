@@ -4,13 +4,13 @@ import postgres from 'postgres';
 
 /**
  * Drizzle/postgres-js connection for the Next.js Node-runtime /r/[code] handler
- * (Phase 04, T06). apps/site has no DB access elsewhere — this is a new pattern.
+ * (Phase 04, T06). apps/site has no DB access elsewhere - this is a new pattern.
  *
- * Connects over DATABASE_URL as the fxl_finders_app runtime role (RLS enforced).
- * The public code lookup succeeds WITHOUT a Clerk JWT / tenant context ONLY
+ * Connects over DATABASE_URL as the fxl_sales_app runtime role (RLS enforced).
+ * The public code lookup succeeds WITHOUT a product JWT / tenant context ONLY
  * because of the referral_links_public_lookup PERMISSIVE SELECT policy (D-E).
  * The clicks INSERT succeeds without tenant context via clicks_insert_public
- * (WITH CHECK true). DATABASE_URL is backend-only — NEVER VITE_-prefixed.
+ * (WITH CHECK true). DATABASE_URL is backend-only - NEVER VITE_-prefixed.
  *
  * A focused subset of the apps/api schema is declared here (only the columns the
  * redirect handler touches): referral_links + apps. The source of truth remains

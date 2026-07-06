@@ -9,10 +9,10 @@ import * as schema from './schema.js';
  *
  * Access pattern (D-H): use getDb() / getAdminDb(). There is intentionally NO
  * `db` singleton and NO `db/index.ts` barrel.
- *   - getDb()      → runtime connection (role fxl_finders_app, RLS ENFORCED).
+ *   - getDb()      → runtime connection (role fxl_sales_app, RLS ENFORCED).
  *                    Tenant-scoped service fns wrap work in a transaction and
  *                    call setTenantContext(tx, orgId) before any query (D-D).
- *   - getAdminDb() → admin/cross-tenant connection (role fxl_finders_admin,
+ *   - getAdminDb() → admin/cross-tenant connection (role fxl_sales_admin,
  *                    BYPASSRLS). Used ONLY by admin domain routes that span orgs.
  *                    NEVER call setTenantContext on this connection (D-C).
  */
@@ -36,7 +36,7 @@ let _adminDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 /**
  * Admin / cross-tenant DB connection (D-C). Authenticates as the BYPASSRLS role
- * (fxl_finders_admin). Used ONLY by admin domain routes that legitimately span
+ * (fxl_sales_admin). Used ONLY by admin domain routes that legitimately span
  * orgs (Phase 03 finders approve/suspend; Phase 05 commissions/conversions admin
  * reads + state transitions; Phase 06 payouts). NEVER call setTenantContext on
  * this connection. Every admin money mutation must still write audit_log.

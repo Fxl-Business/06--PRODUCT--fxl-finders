@@ -48,9 +48,9 @@ CREATE UNIQUE INDEX "referral_links_code_idx" ON "referral_links" USING btree ("
 CREATE INDEX "referral_links_finder_id_idx" ON "referral_links" USING btree ("finder_id","created_at");--> statement-breakpoint
 
 -- ════════════════════════════════════════════════════════════════════════════
--- Phase 04 RLS / grants / FK-promotion — APPENDED INTO the journaled migration
+-- Phase 04 RLS / grants / FK-promotion - APPENDED INTO the journaled migration
 -- (plan-brief D-F). NOT a standalone unjournaled .sql (the migrator skips those).
--- Runs as fxl_finders_owner. Runtime role: fxl_finders_app (no BYPASSRLS).
+-- Runs as fxl_sales_owner. Runtime role: fxl_sales_app (no BYPASSRLS).
 -- Admin/cross-tenant reads use getAdminDb() BYPASSRLS conn (plan-brief D-C).
 -- ════════════════════════════════════════════════════════════════════════════
 
@@ -62,11 +62,11 @@ CREATE INDEX "clicks_link_id_created_at_idx" ON "clicks" USING btree ("link_id",
 CREATE INDEX "clicks_finder_id_created_at_idx" ON "clicks" USING btree ("finder_id","created_at" DESC);--> statement-breakpoint
 
 -- ── Phase 04 role grants ─────────────────────────────────────────────────────
--- referral_links: finder-scoped; INSERT by API, SELECT/UPDATE by fxl_finders_app
-GRANT SELECT, INSERT, UPDATE ON referral_links TO fxl_finders_app;--> statement-breakpoint
+-- referral_links: finder-scoped; INSERT by API, SELECT/UPDATE by fxl_sales_app
+GRANT SELECT, INSERT, UPDATE ON referral_links TO fxl_sales_app;--> statement-breakpoint
 -- clicks: append-only; INSERT by /r/:code (public path, app DB role), SELECT by finder
-GRANT SELECT, INSERT ON clicks TO fxl_finders_app;--> statement-breakpoint
--- (no UPDATE, no DELETE on clicks — append-only)
+GRANT SELECT, INSERT ON clicks TO fxl_sales_app;--> statement-breakpoint
+-- (no UPDATE, no DELETE on clicks - append-only)
 
 -- ── Promote Phase 01 leads soft FKs to hard constraints ──────────────────────
 -- ON DELETE SET NULL so revoking a link / (never) deleting a click does not
@@ -81,7 +81,7 @@ ALTER TABLE referral_links FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 
 -- Tenant isolation for finder dashboard reads + all mutations.
 CREATE POLICY referral_links_tenant_isolation ON referral_links
-  AS PERMISSIVE FOR ALL TO fxl_finders_app
+  AS PERMISSIVE FOR ALL TO fxl_sales_app
   USING (org_id = current_setting('app.current_org_id', true))
   WITH CHECK (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
 
@@ -89,7 +89,7 @@ CREATE POLICY referral_links_tenant_isolation ON referral_links
 -- The 10-char code is the bearer secret. SELECT-only + PERMISSIVE (OR-combines
 -- with the tenant policy). Without it, /r/[code] returns 410 for every valid code.
 CREATE POLICY referral_links_public_lookup ON referral_links
-  AS PERMISSIVE FOR SELECT TO fxl_finders_app
+  AS PERMISSIVE FOR SELECT TO fxl_sales_app
   USING (true);--> statement-breakpoint
 
 -- ── clicks RLS (split: public INSERT + tenant SELECT) ────────────────────────
@@ -98,11 +98,11 @@ ALTER TABLE clicks FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 
 -- Allow INSERT without tenant context (public /r/:code handler inserts directly).
 CREATE POLICY clicks_insert_public ON clicks
-  AS PERMISSIVE FOR INSERT TO fxl_finders_app
+  AS PERMISSIVE FOR INSERT TO fxl_sales_app
   WITH CHECK (true);--> statement-breakpoint
 
 -- Allow SELECT only for own org (finder dashboard).
 CREATE POLICY clicks_select_tenant ON clicks
-  AS PERMISSIVE FOR SELECT TO fxl_finders_app
+  AS PERMISSIVE FOR SELECT TO fxl_sales_app
   USING (org_id = current_setting('app.current_org_id', true));
--- No UPDATE/DELETE policy (append-only; fxl_finders_app has no UPDATE/DELETE grant).
+-- No UPDATE/DELETE policy (append-only; fxl_sales_app has no UPDATE/DELETE grant).

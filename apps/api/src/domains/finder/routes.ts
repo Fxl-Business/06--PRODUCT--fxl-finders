@@ -10,15 +10,15 @@ import { mapLinkError } from '../links/routes.js';
 
 /**
  * Finder domain routes (Phase 04, T05). FIRST-CLASS finder-authed read
- * endpoints — NOT admin-route reuse (admin routes are requireAdmin-gated; a
- * finder JWT would 403). clerkAuthMiddleware is applied at the server.ts mount.
+ * endpoints - NOT admin-route reuse (admin routes are requireAdmin-gated; a
+ * finder JWT would 403). appAuthMiddleware is applied at the server.ts mount.
  *
  *   GET /apps                     → active apps for the link-generator dropdown
  *   GET /apps/:appId/products     → active products + price bands for the form
  *   GET /clicks                   → paginated finder clicks (org-isolated via RLS)
  *   GET /clicks/stats             → { total, unique }
  *
- * apps/products/price_bands have NO RLS — read directly on the app role, NEVER
+ * apps/products/price_bands have NO RLS - read directly on the app role, NEVER
  * setTenantContext. clicks reads ARE tenant-scoped (handled inside the service
  * via setTenantContext + the clicks_select_tenant RLS policy).
  */

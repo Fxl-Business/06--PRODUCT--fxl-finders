@@ -1,46 +1,43 @@
-# Fxl Sales — mobile
+# fxl-sales mobile
 
-Expo Router + React Native + NativeWind + Clerk Expo. **Standalone — not part of the root pnpm workspace.**
-
-## Why standalone?
-
-Expo SDK 54 + React Native 0.81 + React 19.1 conflict with React 18 pinned by `apps/web`. Sharing a pnpm scope causes hoist battles. The mobile app has its own `pnpm-lock.yaml`.
+Expo Router, React Native, NativeWind, and TanStack Query.
+This app is standalone and is not part of the root pnpm workspace.
 
 ## Setup
 
 ```bash
 cd apps/mobile
 pnpm install
-cp .env.example .env  # fill in EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY + EXPO_PUBLIC_API_URL
-pnpm start            # opens Expo dev tools
+cp .env.example .env
+pnpm start
 ```
 
-## Run on device
+Set `EXPO_PUBLIC_API_URL` to the API base URL.
 
-- **iOS Simulator**: press `i` in Expo CLI
-- **Android Emulator**: press `a`
-- **Expo Go (phone)**: scan QR code (limited features — for full Clerk flow, use a dev build)
-- **Dev build**: `pnpm ios` / `pnpm android` (requires Xcode / Android Studio)
+## Development
 
-## Layout
+- Expo Go is enough for layout and most UI work.
+- Use a dev build when adding native modules or testing native-only flows.
+- Keep auth and commerce browser handoff owned by FXL Hub.
 
-```
+## Structure
+
+```text
 app/
-├── _layout.tsx           ClerkProvider + QueryClient + Stack
-├── index.tsx             /              → redirect to (auth) or (tabs)
-├── (auth)/
-│   ├── _layout.tsx
-│   └── sign-in.tsx       email + password sign-in (replaceable with social)
+├── _layout.tsx           QueryClientProvider + Stack
+├── index.tsx             redirects into tabs
 └── (tabs)/
-    ├── _layout.tsx       Tab navigator (Home / Settings)
-    ├── index.tsx         Home — 2 KPICards (placeholder values)
-    └── settings.tsx      Logged-in user + sign-out
-components/
-└── KPICard.tsx           Native version of the web KPICard
-lib/
-└── clerk-token-cache.ts  expo-secure-store wrapper for Clerk JWT cache
+    ├── _layout.tsx       tab navigator
+    ├── index.tsx         dashboard
+    └── settings.tsx      settings
 ```
 
-## NativeWind
+## Commands
 
-Tailwind classes work via `className=`. Tokens live in `tailwind.config.js`. The shared theme tokens in `packages/shared-utils/src/theme.ts` are NOT imported here directly (different pnpm scope) — keep `tailwind.config.js` in sync manually.
+```bash
+pnpm start
+pnpm ios
+pnpm android
+pnpm type-check
+pnpm lint
+```

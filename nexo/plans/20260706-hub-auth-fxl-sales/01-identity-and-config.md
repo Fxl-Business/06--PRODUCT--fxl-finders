@@ -14,7 +14,7 @@ files_modified:
   - packages/shared-types/src/env.ts
   - apps/api/src/config/auth-provider.ts
   - apps/web/src/auth/provider.ts
-acceptance: "given provider envs are set, when config is loaded, then the selected provider and Hub env contract are explicit and testable"
+acceptance: "given Hub envs are set, when config is loaded, then the Hub contract is explicit and testable"
 ---
 
 # 01 - Identity And Config
@@ -26,7 +26,7 @@ acceptance: "given provider envs are set, when config is loaded, then the select
 
 ## Plan
 
-- Rename workspace package identity to `fxl-sales` / `@fxl-sales/*`.
-- Add API env support for `AUTH_PROVIDER`, `FXL_HUB_API_URL`, `FXL_HUB_PUBLISHABLE_KEY`, `FXL_HUB_SECRET_KEY`, and optional `FXL_HUB_AUDIENCE`.
-- Add web provider helper for build-time `VITE_AUTH_PROVIDER`.
-- Keep Clerk env fields during rollback.
+- Rename workspace package identity to `fxl-sales` and `@fxl-sales/*`.
+- Add API env support for `FXL_HUB_API_URL`, `FXL_HUB_PUBLISHABLE_KEY`, `FXL_HUB_SECRET_KEY`, and optional `FXL_HUB_AUDIENCE`.
+- Add web Hub browser config from Vite env values.
+- Keep auth selection Hub-only.

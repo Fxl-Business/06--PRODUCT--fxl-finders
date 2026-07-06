@@ -9,16 +9,16 @@ import { RefundBodySchema, WebhookBodySchema, ingestConversion } from './service
 /**
  * Conversions domain routes (Phase 05 T06).
  *
- * POST / and POST /refund are the inbound webhook path — NO clerkAuthMiddleware
- * (no Clerk JWT). The hmacVerifyMiddleware is applied at the mount in server.ts and
+ * POST / and POST /refund are the inbound webhook path - no product JWT.
+ * The hmacVerifyMiddleware is applied at the mount in server.ts and
  * stamps rawBodyHash on the context (D-L). The admin GET is gated by requireAdmin
  * (mounted in server.ts) and reads via getAdminDb() (BYPASSRLS, D-C).
  */
 export const conversionsRouter = new Hono();
 
 /**
- * Admin reconciliation router — SEPARATE from conversionsRouter so the HMAC
- * webhook middleware never runs on admin reads. Mounted under clerkAuthMiddleware
+ * Admin reconciliation router - SEPARATE from conversionsRouter so the HMAC
+ * webhook middleware never runs on admin reads. Mounted under appAuthMiddleware
  * + requireAdmin in server.ts; reads via getAdminDb() (BYPASSRLS, D-C).
  */
 export const conversionsAdminRouter = new Hono();
@@ -29,14 +29,14 @@ function mapIngestError(message: string): { status: 422; body: { error: string }
     case 'commission_rules_not_found':
     case 'attribution_not_found':
     case 'unsupported_event_type':
-      // 4xx so financeiro retries/alerts — NEVER a silent 200 (D-M).
+      // 4xx so financeiro retries/alerts - NEVER a silent 200 (D-M).
       return { status: 422, body: { error: message } };
     default:
       return null;
   }
 }
 
-// POST / — inbound sale webhook (HMAC-verified upstream).
+// POST / - inbound sale webhook (HMAC-verified upstream).
 conversionsRouter.post('/', async (c) => {
   const parsed = WebhookBodySchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) {
@@ -44,7 +44,7 @@ conversionsRouter.post('/', async (c) => {
   }
   const rawBodyHash = c.get('rawBodyHash'); // set by hmacVerifyMiddleware (D-L)
   try {
-    // D-C: the webhook is a cross-tenant path with NO finder JWT — it must SELECT
+    // D-C: the webhook is a cross-tenant path with NO finder JWT - it must SELECT
     // clicks/finders/commission_rules (all tenant-scoped FORCE RLS) without a tenant
     // context. Run ingest on getAdminDb() (BYPASSRLS). The split WITH CHECK(true)
     // INSERT policies keep the app-role webhook path viable too, but the cross-tenant
@@ -61,7 +61,7 @@ conversionsRouter.post('/', async (c) => {
   }
 });
 
-// POST /refund — reverse all commissions for a conversion (admin/webhook path).
+// POST /refund - reverse all commissions for a conversion (admin/webhook path).
 conversionsRouter.post('/refund', async (c) => {
   const parsed = RefundBodySchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) {
@@ -83,7 +83,7 @@ conversionsRouter.post('/refund', async (c) => {
 
 // GET / on the admin router → mounted at /api/v1/conversions/admin (requireAdmin gate
 // in server.ts; BYPASSRLS). Resolves finder/seller display names so the UI never
-// renders raw UUIDs/Clerk IDs.
+// renders raw UUIDs.
 conversionsAdminRouter.get('/', async (c) => {
   const source = c.req.query('source');
   const finderId = c.req.query('finderId');

@@ -1,5 +1,3 @@
-export type WebAuthProvider = 'clerk' | 'hub';
-
 export type BrowserHubConfig = {
   apiUrl: string;
   publishableKey: string;
@@ -7,16 +5,6 @@ export type BrowserHubConfig = {
 };
 
 type EnvLike = Record<string, string | undefined>;
-
-export function loadWebAuthProvider(env: EnvLike): WebAuthProvider {
-  const provider = (env.VITE_AUTH_PROVIDER ?? 'clerk').toLowerCase();
-
-  if (provider === 'clerk' || provider === 'hub') {
-    return provider;
-  }
-
-  throw new Error('VITE_AUTH_PROVIDER must be either clerk or hub');
-}
 
 export function loadHubBrowserConfig(env: EnvLike): BrowserHubConfig {
   const apiUrl = env.VITE_FXL_HUB_API_URL;

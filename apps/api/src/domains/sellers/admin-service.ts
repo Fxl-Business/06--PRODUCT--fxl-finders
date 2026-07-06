@@ -1,18 +1,13 @@
 import { desc, eq } from 'drizzle-orm';
-import { clerkClient } from '../../lib/clerk.js';
 import { getAdminDb } from '../../db/client.js';
 import { sellers } from '../../db/schema.js';
-import { getAuthProviderName } from '../../middleware/app-auth.js';
 
 /**
  * Admin sellers service (Phase 03 T04).
  *
  * `sellers` is admin-managed cross-tenant (no RLS). Uses getAdminDb() (D-H/D-C)
  * for consistency with the other admin routes; setTenantContext is NEVER called.
- * clerkClient is imported from ../../lib/clerk.js (D-I) — NOT from '@clerk/backend'.
- *
- * No org for sellers (cross-org entity). clerk_user_id stays NULL until the
- * Clerk user.created webhook backfills it (Phase 05).
+ * Hub account provisioning is operator-owned, so account_id remains nullable.
  */
 
 export type SellerRow = typeof sellers.$inferSelect;
@@ -32,7 +27,7 @@ export async function createSellerAndInvite(
   const [seller] = await db
     .insert(sellers)
     .values({
-      clerkUserId: null, // backfilled by Phase 05 Clerk user.created webhook
+      accountId: null,
       displayName: input.displayName,
       contactEmail: input.contactEmail,
       status: 'active',
@@ -40,14 +35,6 @@ export async function createSellerAndInvite(
     .returning();
 
   if (!seller) throw new Error('seller_insert_failed');
-
-  if (getAuthProviderName() === 'clerk') {
-    await clerkClient.invitations.createInvitation({
-      emailAddress: input.contactEmail,
-      publicMetadata: { role: 'seller', sellerId: seller.id },
-      redirectUrl: process.env.CLERK_SELLER_REDIRECT_URL ?? 'http://localhost:8006/seller/deals',
-    });
-  }
 
   return seller;
 }

@@ -18,7 +18,7 @@ const baseHubAuth: MinimalHubAuthContext = {
 };
 
 describe('getHubLegacyAuthContext', () => {
-  it('maps Hub account and workspace ids into the legacy Hono auth context', () => {
+  it('maps Hub account and workspace ids into the Hono auth context', () => {
     expect(getHubLegacyAuthContext(baseHubAuth)).toEqual({
       userId: 'hub-account-1',
       orgId: 'org_existing_1',

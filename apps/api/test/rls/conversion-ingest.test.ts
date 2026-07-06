@@ -25,11 +25,11 @@ import { verifyChain, type AuditChainRow } from '../../src/domains/audit/service
 
 const ADMIN_DB_URL =
   process.env.ADMIN_DATABASE_URL ??
-  'postgresql://fxl_finders_admin:fxl_finders_admin@localhost:5006/fxl_finders';
+  'postgresql://fxl_sales_admin:fxl_sales_admin@localhost:5006/fxl_sales';
 const SEED_DB_URL =
   process.env.TEST_MIGRATE_DATABASE_URL ??
   process.env.MIGRATE_DATABASE_URL ??
-  'postgresql://postgres:postgres@localhost:5006/fxl_finders';
+  'postgresql://postgres:postgres@localhost:5006/fxl_sales';
 
 describe('conversion ingest + commission + audit (Phase 05)', () => {
   let adminClient: postgres.Sql;
@@ -66,7 +66,7 @@ describe('conversion ingest + commission + audit (Phase 05)', () => {
       INSERT INTO commission_rules (product_id, setup_rate_pct, recurring_rate_pct, recurring_months, basis)
       VALUES (${productId}, '30.00', '20.00', 12, 'quoted_net')`;
     const [finder] = await seed`
-      INSERT INTO finders (org_id, clerk_user_id, clerk_org_id, status, display_name, contact_email, cpf, pix_key)
+      INSERT INTO finders (org_id, account_id, workspace_id, status, display_name, contact_email, cpf, pix_key)
       VALUES (${ORG}, ${'usr_ci_' + stamp}, ${'corg_ci_' + stamp}, 'approved', 'CI Finder', 'ci@x.com', '12345678901', 'ci@x.com')
       RETURNING id`;
     finderId = (finder as { id: string }).id;
@@ -104,7 +104,7 @@ describe('conversion ingest + commission + audit (Phase 05)', () => {
       event_type: 'sale',
       idempotency_key: buildIdempotencyKey(SOURCE, 'ord_' + stamp, 'sale'),
       click_id: clickId,
-      seller_clerk_id: null,
+      seller_account_id: null,
       customer_email: 'cust@x.com',
       customer_name: 'Cust',
       customer_phone: '+5511',
@@ -184,7 +184,7 @@ describe('conversion ingest + commission + audit (Phase 05)', () => {
   });
 
   it('promoteHoldExpired auto path promotes pending→locked once hold_until passes (D-K)', async () => {
-    // Backdate hold_until so the nightly auto path picks the commissions up — no manual action.
+    // Backdate hold_until so the nightly auto path picks the commissions up - no manual action.
     await seed`UPDATE commissions SET hold_until = now() - interval '1 day' WHERE finder_id = ${finderId} AND status = 'pending'`;
     const promoted = await promoteHoldExpired(adminDb);
     expect(promoted).toBeGreaterThanOrEqual(2);

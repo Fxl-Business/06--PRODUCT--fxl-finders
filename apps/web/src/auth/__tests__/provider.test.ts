@@ -1,21 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getHubBffBasePath, loadHubBrowserConfig, loadWebAuthProvider } from '../provider';
-
-describe('loadWebAuthProvider', () => {
-  it('defaults to Clerk for build-time rollback', () => {
-    expect(loadWebAuthProvider({})).toBe('clerk');
-  });
-
-  it('accepts Hub as the build-time provider', () => {
-    expect(loadWebAuthProvider({ VITE_AUTH_PROVIDER: 'hub' })).toBe('hub');
-  });
-
-  it('rejects unknown provider names', () => {
-    expect(() => loadWebAuthProvider({ VITE_AUTH_PROVIDER: 'magic' })).toThrow(
-      /VITE_AUTH_PROVIDER/,
-    );
-  });
-});
+import { getHubBffBasePath, loadHubBrowserConfig } from '../provider';
 
 describe('loadHubBrowserConfig', () => {
   it('loads Hub browser config from Vite env vars', () => {
@@ -31,7 +15,7 @@ describe('loadHubBrowserConfig', () => {
     });
   });
 
-  it('requires the Hub browser vars in Hub mode', () => {
+  it('requires the Hub browser vars', () => {
     expect(() => loadHubBrowserConfig({})).toThrow(/VITE_FXL_HUB_API_URL/);
   });
 });
