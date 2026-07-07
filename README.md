@@ -1,7 +1,7 @@
 # fxl-sales
 
 FXL Sales is the FXL affiliate and referral product.
-It runs as a pnpm monorepo with an API, web app, public site, and standalone Expo mobile app.
+It runs as a pnpm monorepo with an API and web app.
 
 Authentication, workspace membership, active workspace switching, and commerce deep links are owned by FXL Hub through `@fxl-business/hub-sdk`.
 The product audience is `product.fxl-sales`.
@@ -12,8 +12,6 @@ The product audience is `product.fxl-sales`.
 | --- | --- | --- |
 | API | `@fxl-sales/api` | `http://localhost:3006` |
 | Web | `@fxl-sales/web` | `http://localhost:8006` |
-| Site | `@fxl-sales/site` | `http://localhost:4006` |
-| Mobile | `apps/mobile` | Expo dev server |
 
 The repository folder is intentionally unchanged for this session.
 Do not rename the folder while an editor session is attached to it.
@@ -31,7 +29,6 @@ Do not rename the folder while an editor session is attached to it.
 ```bash
 bash scripts/setup.sh
 pnpm install
-pnpm --dir apps/mobile install
 make db-up
 make migrate
 ```
@@ -48,6 +45,7 @@ FXL_HUB_API_URL=http://localhost:9016
 FXL_HUB_PUBLISHABLE_KEY=pk_fxl-sales_VzQ9-LUONCnlKllxCRLffN3nw6Z9PQl2
 FXL_HUB_SECRET_KEY=<operator-issued-secret>
 FXL_HUB_REDIRECT_URI=http://localhost:8006/auth/callback
+PUBLIC_LINK_BASE_URL=http://localhost:3006
 ```
 
 Web:
@@ -64,6 +62,7 @@ The Hub SDK derives `product.fxl-sales` from the publishable key.
 Only set `FXL_HUB_AUDIENCE` when an operator explicitly asks for an override.
 Local browser auth uses same-origin `/auth/*` routes on `http://localhost:8006`.
 Vite proxies those routes to `http://localhost:3006`, so the registered Hub redirect URI is `http://localhost:8006/auth/callback`.
+The API owns public referral redirects at `/r/:code`, so `PUBLIC_LINK_BASE_URL` should point to the API public origin.
 In production, either keep the same route shape with a scoped web rewrite for `/auth/login`, `/auth/callback`, `/auth/refresh`, `/auth/switch`, and `/auth/logout`, or set `VITE_AUTH_BFF_BASE_PATH` and `FXL_HUB_REDIRECT_URI` to the same API-origin callback.
 
 ## Development

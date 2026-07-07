@@ -1,33 +1,26 @@
-.PHONY: dev front site back mobile install setup setup-no-db build build-shared build-web build-api build-site \
+.PHONY: dev front back install setup setup-no-db build build-shared build-web build-api \
        lint lint-fix type-check check \
        migrate db-up db-down db-reset docker-up docker-down docker-build \
-       clean preview help mobile-install mobile-ios doctor
+       clean preview help doctor
 
 .DEFAULT_GOAL := dev
 
 # --- Development ---
 
-dev: ## Interactive app selector — pick one of api/web/site/mobile to run
+dev: ## Interactive app selector - pick api or web to run
 	@printf "Which app do you want to run?\n"
 	@printf "  1) api     (http://localhost:3006)\n"
 	@printf "  2) web     (http://localhost:8006)\n"
-	@printf "  3) mobile  (Expo dev server)\n"
-	@printf "  4) site    (http://localhost:4006)\n"
-	@printf "Selection [1-4]: "
+	@printf "Selection [1-2]: "
 	@read choice; \
 	case "$$choice" in \
 		1) $(MAKE) back ;; \
 		2) $(MAKE) front ;; \
-		3) $(MAKE) mobile ;; \
-		4) $(MAKE) site ;; \
 		*) echo "Invalid choice: $$choice"; exit 1 ;; \
 	esac
 
 front: ## Run only the frontend
 	pnpm --filter @fxl-sales/web dev
-
-site: ## Run only the landing page (apps/site)
-	pnpm --filter @fxl-sales/site dev
 
 back: build-shared ## Run only the API
 	pnpm --filter @fxl-sales/api dev
@@ -58,9 +51,6 @@ build-web: ## Build frontend
 
 build-api: build-shared ## Build API
 	pnpm --filter @fxl-sales/api build
-
-build-site: ## Build landing page
-	pnpm --filter @fxl-sales/site build
 
 # --- Quality ---
 
@@ -108,17 +98,6 @@ docker-down: ## Stop all services
 docker-build: ## Rebuild Docker images
 	docker compose build --no-cache
 
-# --- Mobile (standalone, not part of pnpm workspace) ---
-
-mobile: ## Start the mobile app (Expo dev server)
-	cd apps/mobile && pnpm start
-
-mobile-install: ## Install mobile-only dependencies
-	cd apps/mobile && pnpm install
-
-mobile-ios: ## Build and run mobile on a connected iOS device
-	cd apps/mobile && pnpm ios -- --device
-
 # --- Misc ---
 
 preview: ## Preview production build locally
@@ -127,7 +106,7 @@ preview: ## Preview production build locally
 clean: ## Remove all node_modules and build artifacts
 	rm -rf node_modules apps/*/node_modules packages/*/node_modules
 	rm -rf apps/*/dist packages/*/dist
-	rm -rf apps/web/.vite apps/site/.next
+	rm -rf apps/web/.vite
 
 # --- Help ---
 

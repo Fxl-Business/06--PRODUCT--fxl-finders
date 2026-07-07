@@ -7,9 +7,7 @@ type Role = 'admin' | 'finder' | 'seller';
 /**
  * Role gate (Phase 03 T09). Reads the role from the active auth provider and
  * renders children only when it matches `role`; otherwise redirects to
- * /no-role. UX-only — the backend requireAdmin / RLS are authoritative.
- *
- * NOTE: apps/web is Vite, NOT Next.js — there is NO 'use client' directive here.
+ * /no-role. UX-only - the backend requireAdmin / RLS are authoritative.
  */
 export function RoleGuard({ role, children }: { role: Role; children: React.ReactNode }) {
   const { role: userRole, isLoaded } = useAuthProfile();

@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 /**
- * Shared env schema fragments. Each app composes these with its own
- * app-specific schema in `src/env.ts` (api/web/site/mobile).
+ * Shared env schema fragments.
+ * Each app composes these with its own app-specific schema in `src/env.ts`.
  */
 
 export const sharedServerEnv = z.object({

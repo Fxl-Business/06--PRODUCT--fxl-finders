@@ -9,6 +9,7 @@ import { requireAdmin } from './middleware/require-admin.js';
 import { adminRouter } from './domains/admin/index.js';
 import { findersPublicRouter } from './domains/finders/public-routes.js';
 import { linksRouter } from './domains/links/routes.js';
+import { referralsRouter } from './domains/referrals/routes.js';
 import { finderRouter } from './domains/finder/routes.js';
 import { hmacVerifyMiddleware } from './domains/conversions/hmac-middleware.js';
 import { conversionsAdminRouter, conversionsRouter } from './domains/conversions/routes.js';
@@ -84,6 +85,9 @@ app.route('/api/v1/admin/audit', auditRouter);
 // Finder-authed link generation (Phase 04, T05).
 app.use('/api/v1/links/*', appAuthMiddleware);
 app.route('/api/v1/links', linksRouter);
+
+// Public referral redirect.
+app.route('/r', referralsRouter);
 
 // Finder-authed catalog + clicks reads (Phase 04, T05).
 app.use('/api/v1/finder/*', appAuthMiddleware);

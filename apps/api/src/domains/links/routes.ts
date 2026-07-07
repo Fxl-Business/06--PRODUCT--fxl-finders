@@ -38,7 +38,7 @@ export function mapLinkError(err: unknown): { status: 403 | 404 | 422; body: { e
 }
 
 function buildFullUrl(code: string): string {
-  const base = env.SITE_URL ?? 'http://localhost:4006';
+  const base = env.PUBLIC_LINK_BASE_URL ?? `http://localhost:${env.PORT}`;
   return base + '/r/' + code;
 }
 

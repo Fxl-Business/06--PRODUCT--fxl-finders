@@ -10,9 +10,8 @@
 #      args), then sed-replaces tokens across the tree.
 #   4. Scaffolds apps/*/.env from .env.dev.example (or .env.example fallback).
 #   5. pnpm install at root.
-#   6. pnpm install in apps/mobile (standalone pnpm scope).
-#   7. docker compose up db -d  (unless --no-db).
-#   8. Prints next steps.
+#   6. docker compose up db -d  (unless --no-db).
+#   7. Prints next steps.
 #
 # Usage:
 #   bash scripts/setup.sh                                  # interactive
@@ -20,7 +19,7 @@
 #   bash scripts/setup.sh --no-db                          # skip Postgres
 #   bash scripts/setup.sh --keep-git                       # keep template .git
 #                                                          # (default: wipe + reinit)
-#   bash scripts/setup.sh --api-port 3000 --web-port 5173 --site-port 3001
+#   bash scripts/setup.sh --api-port 3000 --web-port 5173
 
 set -euo pipefail
 
@@ -41,11 +40,9 @@ KEEP_GIT=0
 PROJECT_NUMBER=""
 API_PORT=3000
 WEB_PORT=5173
-SITE_PORT=3001
 PG_PORT=5432
 API_PORT_OVERRIDDEN=0
 WEB_PORT_OVERRIDDEN=0
-SITE_PORT_OVERRIDDEN=0
 PG_PORT_OVERRIDDEN=0
 POSITIONAL=()
 
@@ -57,7 +54,6 @@ while [[ $# -gt 0 ]]; do
     -n|--project-number) PROJECT_NUMBER=$2; shift 2 ;;
     --api-port)         API_PORT=$2; API_PORT_OVERRIDDEN=1; shift 2 ;;
     --web-port)         WEB_PORT=$2; WEB_PORT_OVERRIDDEN=1; shift 2 ;;
-    --site-port)        SITE_PORT=$2; SITE_PORT_OVERRIDDEN=1; shift 2 ;;
     --pg-port)          PG_PORT=$2; PG_PORT_OVERRIDDEN=1; shift 2 ;;
     -h|--help)
       sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
@@ -170,7 +166,6 @@ if [[ $MODE == "new-project" ]]; then
   # multiple projects can run their stacks simultaneously without collision:
   #   API   = 3000 + N
   #   Web   = 8000 + N
-  #   Site  = 4000 + N
   #   DB    = 5000 + N
   # Default parsed from the cwd dirname leading digit (e.g. "3-gps-comercial" → 3).
   # Press Enter on the prompt to keep stock defaults (3000 / 5173 / 3001 / 5432).
@@ -194,7 +189,6 @@ if [[ $MODE == "new-project" ]]; then
     N=$((10#$PROJECT_NUMBER))
     [[ $API_PORT_OVERRIDDEN  -eq 0 ]] && API_PORT=$((3000 + N))
     [[ $WEB_PORT_OVERRIDDEN  -eq 0 ]] && WEB_PORT=$((8000 + N))
-    [[ $SITE_PORT_OVERRIDDEN -eq 0 ]] && SITE_PORT=$((4000 + N))
     [[ $PG_PORT_OVERRIDDEN   -eq 0 ]] && PG_PORT=$((5000 + N))
   fi
 
@@ -205,7 +199,6 @@ if [[ $MODE == "new-project" ]]; then
   [[ -n $PROJECT_NUMBER ]] && echo "  project number: $PROJECT_NUMBER (ports auto-derived)"
   echo "  api port:       $API_PORT"
   echo "  web port:       $WEB_PORT"
-  echo "  site port:      $SITE_PORT"
   echo "  db port (host): $PG_PORT"
   echo
 
@@ -220,15 +213,14 @@ if [[ $MODE == "new-project" ]]; then
     fi
   }
 
-  # File enumeration: skip node_modules, dist, .git, mobile native dirs, binaries
+  # File enumeration: skip node_modules, dist, .git, and binaries
   while IFS= read -r f; do
-    if grep -qE '__APP_(SLUG|NAME|PG_DB|PORT_API|PORT_WEB|PORT_SITE|PORT_DB|CREATED_AT)__' "$f"; then
+    if grep -qE '__APP_(SLUG|NAME|PG_DB|PORT_API|PORT_WEB|PORT_DB|CREATED_AT)__' "$f"; then
       sed_inplace "s|__APP_SLUG__|$SLUG|g" "$f"
       sed_inplace "s|__APP_NAME__|$NAME|g" "$f"
       sed_inplace "s|__APP_PG_DB__|$DB|g" "$f"
       sed_inplace "s|__APP_PORT_API__|$API_PORT|g" "$f"
       sed_inplace "s|__APP_PORT_WEB__|$WEB_PORT|g" "$f"
-      sed_inplace "s|__APP_PORT_SITE__|$SITE_PORT|g" "$f"
       sed_inplace "s|__APP_PORT_DB__|$PG_PORT|g" "$f"
       sed_inplace "s|__APP_CREATED_AT__|$CREATED_AT|g" "$f"
     fi
@@ -244,8 +236,6 @@ if [[ $MODE == "new-project" ]]; then
     -not -path './packages/*/dist/*' \
     -not -path './.git/*' \
     -not -path './scripts/*' \
-    -not -path './apps/mobile/ios/*' \
-    -not -path './apps/mobile/android/*' \
     -not -name 'pnpm-lock.yaml' \
     -not -name '*.png' \
     -not -name '*.jpg' \
@@ -269,7 +259,7 @@ fi
 
 # --- scaffold .env files ---
 cyan "==> Scaffolding .env files"
-for app in apps/api apps/web apps/site apps/mobile; do
+for app in apps/api apps/web; do
   if [[ -f "$app/.env.dev.example" ]]; then
     example="$app/.env.dev.example"
   elif [[ -f "$app/.env.example" ]]; then
@@ -293,13 +283,6 @@ echo
 cyan "==> pnpm install (root workspace)"
 pnpm install
 echo
-
-# --- pnpm install (apps/mobile, standalone scope) ---
-if [[ -f apps/mobile/package.json ]]; then
-  cyan "==> pnpm install (apps/mobile - standalone pnpm scope)"
-  (cd apps/mobile && pnpm install)
-  echo
-fi
 
 # --- start Postgres ---
 if [[ $NO_DB -eq 0 ]]; then

@@ -39,8 +39,8 @@ const schema = z.object({
   FXL_HUB_POST_LOGIN_REDIRECT: emptyToUndefinedUrl,
   FXL_HUB_POST_LOGIN_ERROR_REDIRECT: emptyToUndefinedUrl,
   SENTRY_DSN: emptyToUndefinedUrl,
-  // Public site origin used to build the referral fullUrl (`/r/<code>`). Phase 04.
-  SITE_URL: emptyToUndefinedUrl,
+  // Public origin used to build referral full URLs.
+  PUBLIC_LINK_BASE_URL: emptyToUndefinedUrl,
 });
 
 const parsed = schema.safeParse(process.env);

@@ -3,13 +3,12 @@
  *
  * Single source of truth for HMAC sign/verify. Phase 05's webhook handler
  * imports `verifyHmac`; the /r/[code] redirect handler imports
- * `signReferralUrl`, `hashIp`, `dailySalt`. Node built-in `crypto` ONLY — no
- * third-party dependency, so this resolves identically in Hono (apps/api) and
- * the Next.js Node runtime (apps/site).
+ * `signReferralUrl`, `hashIp`, `dailySalt`. Node built-in `crypto` ONLY - no
+ * third-party dependency, so this resolves identically in Hono and Node.
  *
  * INVARIANT (D-O): sign and verify operate over the IDENTICAL raw byte string.
  * For webhooks `payload = ts + "." + rawBody`. For referral URLs the `fxl_sig`
- * is `hmac(click_id + "." + link.signature, secret)` (D-P) — the "." separator
+ * is `hmac(click_id + "." + link.signature, secret)` (D-P) - the "." separator
  * is mandatory and byte-identical.
  */
 
@@ -53,7 +52,7 @@ export function signReferralUrl(
 
 /**
  * Verifies a referral `?fxl_sig` param (used by sibling apps when fxl_sig
- * verification is enabled — deferred in v1.0 per D-P, formula pinned here).
+ * verification is enabled - deferred in v1.0 per D-P, formula pinned here).
  */
 export function verifyReferralSig(
   webhookSigningSecret: string,

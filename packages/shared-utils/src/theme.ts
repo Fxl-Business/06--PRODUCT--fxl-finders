@@ -1,9 +1,7 @@
 /**
- * Shared design tokens — consumed by Tailwind configs in all 4 apps.
+ * Shared design tokens consumed by the web Tailwind config.
  *
  *   apps/web/tailwind.config.ts     → reads colors/fonts from here
- *   apps/site/tailwind.config.ts    → same
- *   apps/mobile/tailwind.config.js  → same (via NativeWind)
  *
  * Keep this file framework-agnostic. No React, no DOM.
  */
