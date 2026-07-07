@@ -1,10 +1,18 @@
 import { useAccessToken } from '@/auth/react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type QueryKey,
+} from '@tanstack/react-query';
 import { adminProductsApi } from '@/lib/api-client';
 import type {
+  AppRow,
   CreateProductBody,
   PriceBandComponent,
   ProductListRow,
+  ProductRow,
   UpdateProductBody,
   UpsertCommissionRuleBody,
   UpsertPriceBandBody,
@@ -14,6 +22,136 @@ import type {
  * Admin products / price-bands / commission-rules hooks (Phase 02, T07). Token
  * resolved via useAccessToken(), threaded into adminProductsApi (D-J).
  */
+
+type ProductsListData = { products: ProductListRow[] };
+type AppsListData = { apps: AppRow[] };
+type ProductListSnapshot = { queryKey: QueryKey; data: ProductsListData };
+type OptimisticProductContext = {
+  optimisticId: string;
+  optimisticRow: ProductListRow;
+  snapshots: ProductListSnapshot[];
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isProductsListData(data: unknown): data is ProductsListData {
+  return isRecord(data) && Array.isArray(data.products);
+}
+
+function isAppsListData(data: unknown): data is AppsListData {
+  return isRecord(data) && Array.isArray(data.apps);
+}
+
+function productListQueryMatchesApp(queryKey: QueryKey, appId: string): boolean {
+  if (queryKey[0] !== 'admin' || queryKey[1] !== 'products') return false;
+  const filter = queryKey[2];
+  return filter === 'all' || filter === appId;
+}
+
+function sortedProducts(products: ProductListRow[]): ProductListRow[] {
+  return [...products].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function findCachedApp(queryClient: QueryClient, appId: string): AppRow | undefined {
+  const data = queryClient.getQueryData<unknown>(['admin', 'apps']);
+  if (!isAppsListData(data)) return undefined;
+  return data.apps.find((app) => app.id === appId);
+}
+
+function productListRowFromProduct(
+  product: ProductRow,
+  app: Pick<AppRow, 'name' | 'slug'> | undefined,
+  fallback?: Pick<ProductListRow, 'appName' | 'appSlug'>,
+): ProductListRow {
+  return {
+    ...product,
+    appName: app?.name ?? fallback?.appName ?? '',
+    appSlug: app?.slug ?? fallback?.appSlug ?? '',
+  };
+}
+
+function optimisticProductRowFromBody(
+  data: CreateProductBody,
+  app: AppRow | undefined,
+): ProductListRow {
+  return {
+    id: `optimistic:${data.appId}:${data.slug}`,
+    appId: data.appId,
+    appName: app?.name ?? '',
+    appSlug: app?.slug ?? '',
+    slug: data.slug,
+    name: data.name,
+    description: data.description ?? null,
+    status: data.status ?? 'active',
+    createdAt: new Date().toISOString(),
+    updatedAt: null,
+  };
+}
+
+function applyOptimisticProductCreate(
+  queryClient: QueryClient,
+  data: CreateProductBody,
+): OptimisticProductContext {
+  const app = findCachedApp(queryClient, data.appId);
+  const optimisticRow = optimisticProductRowFromBody(data, app);
+  const snapshots = queryClient
+    .getQueriesData<unknown>({ queryKey: ['admin', 'products'] })
+    .reduce<ProductListSnapshot[]>((acc, [queryKey, listData]) => {
+      if (!productListQueryMatchesApp(queryKey, data.appId) || !isProductsListData(listData)) {
+        return acc;
+      }
+
+      acc.push({ queryKey, data: listData });
+      queryClient.setQueryData<ProductsListData>(queryKey, {
+        products: sortedProducts([
+          ...listData.products.filter((product) => product.id !== optimisticRow.id),
+          optimisticRow,
+        ]),
+      });
+      return acc;
+    }, []);
+
+  return { optimisticId: optimisticRow.id, optimisticRow, snapshots };
+}
+
+function reconcileOptimisticProductCreate(
+  queryClient: QueryClient,
+  context: OptimisticProductContext | undefined,
+  product: ProductRow,
+) {
+  if (!context) return;
+  const app = findCachedApp(queryClient, product.appId);
+  const persistedRow = productListRowFromProduct(product, app, context.optimisticRow);
+
+  for (const snapshot of context.snapshots) {
+    const current = queryClient.getQueryData<unknown>(snapshot.queryKey);
+    if (!isProductsListData(current)) continue;
+    queryClient.setQueryData<ProductsListData>(snapshot.queryKey, {
+      products: sortedProducts(
+        current.products.map((row) => (row.id === context.optimisticId ? persistedRow : row)),
+      ),
+    });
+  }
+}
+
+function rollbackOptimisticProductCreate(
+  queryClient: QueryClient,
+  context: OptimisticProductContext | undefined,
+) {
+  if (!context) return;
+  for (const snapshot of context.snapshots) {
+    const current = queryClient.getQueryData<unknown>(snapshot.queryKey);
+    if (!isProductsListData(current)) {
+      queryClient.setQueryData<ProductsListData>(snapshot.queryKey, snapshot.data);
+      continue;
+    }
+    queryClient.setQueryData<ProductsListData>(snapshot.queryKey, {
+      products: current.products.filter((row) => row.id !== context.optimisticId),
+    });
+  }
+}
 
 export function useAdminProducts(appId?: string) {
   const { getToken } = useAccessToken();
@@ -39,7 +177,17 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: async (data: CreateProductBody) =>
       adminProductsApi.create(data, (await getToken()) ?? ''),
-    onSuccess: () => {
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ['admin', 'products'] });
+      return applyOptimisticProductCreate(queryClient, data);
+    },
+    onSuccess: (res, _data, context) => {
+      reconcileOptimisticProductCreate(queryClient, context, res.product);
+    },
+    onError: (_error, _data, context) => {
+      rollbackOptimisticProductCreate(queryClient, context);
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'products'] });
     },
   });
