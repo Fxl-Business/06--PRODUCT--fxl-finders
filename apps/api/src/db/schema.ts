@@ -423,3 +423,211 @@ export const payouts = pgTable('payouts', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }),
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// sales_ops_* - tenant-scoped operational CRM for the FXL Vendas workspace.
+// This domain backs the real app migrated from the prototype. Money is integer
+// cents and every tenant read/write filters org_id in the service layer.
+// ─────────────────────────────────────────────────────────────────────────────
+export const salesOpsPeople = pgTable(
+  'sales_ops_people',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(),
+    displayName: text('display_name').notNull(),
+    contactEmail: text('contact_email'),
+    status: text('status').notNull().default('active'), // 'active' | 'inactive'
+    isSeller: boolean('is_seller').notNull().default(false),
+    isFinder: boolean('is_finder').notNull().default(false),
+    isCollaborator: boolean('is_collaborator').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }),
+  },
+  (t) => [index('sales_ops_people_org_id_idx').on(t.orgId, t.displayName)],
+);
+
+export const salesOpsProducts = pgTable(
+  'sales_ops_products',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(),
+    name: text('name').notNull(),
+    type: text('type').notNull().default('SaaS'),
+    codeSuffix: text('code_suffix').notNull().default('0'),
+    openPrice: boolean('open_price').notNull().default(false),
+    setupBrl: integer('setup_brl').notNull().default(0),
+    hasMonthly: boolean('has_monthly').notNull().default(false),
+    monthlyBrl: integer('monthly_brl').notNull().default(0),
+    recurringCommission: boolean('recurring_commission').notNull().default(false),
+    hasFinderCommission: boolean('has_finder_commission').notNull().default(false),
+    sellerCommissionType: text('seller_commission_type').notNull().default('pct'),
+    sellerCommissionValue: numeric('seller_commission_value', {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+    finderCommissionType: text('finder_commission_type').notNull().default('pct'),
+    finderCommissionValue: numeric('finder_commission_value', {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+    modules: jsonb('modules').notNull().default(sql`'[]'::jsonb`),
+    providers: jsonb('providers').notNull().default(sql`'[]'::jsonb`),
+    status: text('status').notNull().default('active'), // 'active' | 'archived'
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('sales_ops_products_org_id_idx').on(t.orgId, t.name),
+    uniqueIndex('sales_ops_products_org_code_suffix_idx').on(t.orgId, t.codeSuffix),
+  ],
+);
+
+export const salesOpsClients = pgTable(
+  'sales_ops_clients',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(),
+    name: text('name').notNull(),
+    contact: text('contact'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }),
+  },
+  (t) => [index('sales_ops_clients_org_id_idx').on(t.orgId, t.name)],
+);
+
+export const salesOpsSettings = pgTable('sales_ops_settings', {
+  orgId: text('org_id').primaryKey(),
+  legalName: text('legal_name').notNull().default(''),
+  document: text('document').notNull().default(''),
+  phone: text('phone').notNull().default(''),
+  financeEmail: text('finance_email').notNull().default(''),
+  defaultSellerCommissionPct: numeric('default_seller_commission_pct', {
+    precision: 5,
+    scale: 2,
+  }).notNull(),
+  defaultFinderCommissionPct: numeric('default_finder_commission_pct', {
+    precision: 5,
+    scale: 2,
+  }).notNull(),
+  defaultTaxPct: numeric('default_tax_pct', { precision: 5, scale: 2 }).notNull(),
+  currency: text('currency').notNull().default('BRL'),
+  taxRegime: text('tax_regime').notNull().default('Simples Nacional'),
+  periodClosingDay: integer('period_closing_day').notNull().default(1),
+  tableDensity: text('table_density').notNull().default('comfortable'),
+  dateFormat: text('date_format').notNull().default('dd/mm/aaaa'),
+  language: text('language').notNull().default('pt-BR'),
+  commissionOnRecurring: boolean('commission_on_recurring').notNull().default(true),
+  sellerCanBeFinder: boolean('seller_can_be_finder').notNull().default(true),
+  updatedAt: timestamp('updated_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const salesOpsSales = pgTable(
+  'sales_ops_sales',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(),
+    sequence: integer('sequence').notNull(),
+    code: text('code').notNull(),
+    clientId: uuid('client_id').references(() => salesOpsClients.id),
+    clientNameSnapshot: text('client_name_snapshot').notNull(),
+    sellerPersonId: uuid('seller_person_id').references(() => salesOpsPeople.id),
+    sellerNameSnapshot: text('seller_name_snapshot').notNull(),
+    finderPersonId: uuid('finder_person_id').references(() => salesOpsPeople.id),
+    finderNameSnapshot: text('finder_name_snapshot'),
+    status: text('status').notNull().default('forecast'),
+    paymentMethod: text('payment_method').notNull(),
+    condition: text('condition').notNull(),
+    installments: integer('installments').notNull().default(1),
+    baseDate: timestamp('base_date', { withTimezone: true }).notNull(),
+    notes: text('notes'),
+    totalBrl: integer('total_brl').notNull(),
+    recurringBrl: integer('recurring_brl').notNull().default(0),
+    sellerCommissionPct: numeric('seller_commission_pct', { precision: 5, scale: 2 }).notNull(),
+    finderCommissionPct: numeric('finder_commission_pct', { precision: 5, scale: 2 }).notNull(),
+    taxPct: numeric('tax_pct', { precision: 5, scale: 2 }).notNull(),
+    otherCostsBrl: integer('other_costs_brl').notNull().default(0),
+    professionalCostsBrl: integer('professional_costs_brl').notNull().default(0),
+    sellerCommissionBrl: integer('seller_commission_brl').notNull().default(0),
+    finderCommissionBrl: integer('finder_commission_brl').notNull().default(0),
+    taxBrl: integer('tax_brl').notNull().default(0),
+    netMarginBrl: integer('net_margin_brl').notNull().default(0),
+    netMarginPct: numeric('net_margin_pct', { precision: 8, scale: 2 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('sales_ops_sales_org_sequence_idx').on(t.orgId, t.sequence),
+    index('sales_ops_sales_org_status_idx').on(t.orgId, t.status),
+  ],
+);
+
+export const salesOpsSaleItems = pgTable(
+  'sales_ops_sale_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(),
+    saleId: uuid('sale_id')
+      .notNull()
+      .references(() => salesOpsSales.id),
+    productId: uuid('product_id').references(() => salesOpsProducts.id),
+    productNameSnapshot: text('product_name_snapshot').notNull(),
+    productTypeSnapshot: text('product_type_snapshot').notNull(),
+    quantity: integer('quantity').notNull().default(1),
+    unitBrl: integer('unit_brl').notNull(),
+    subtotalBrl: integer('subtotal_brl').notNull(),
+  },
+  (t) => [index('sales_ops_sale_items_sale_id_idx').on(t.saleId)],
+);
+
+export const salesOpsSaleProfessionals = pgTable(
+  'sales_ops_sale_professionals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(),
+    saleId: uuid('sale_id')
+      .notNull()
+      .references(() => salesOpsSales.id),
+    personId: uuid('person_id').references(() => salesOpsPeople.id),
+    personNameSnapshot: text('person_name_snapshot').notNull(),
+    role: text('role').notNull(),
+    costBrl: integer('cost_brl').notNull(),
+  },
+  (t) => [index('sales_ops_sale_professionals_sale_id_idx').on(t.saleId)],
+);
+
+export const salesOpsReceivables = pgTable(
+  'sales_ops_receivables',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(),
+    saleId: uuid('sale_id')
+      .notNull()
+      .references(() => salesOpsSales.id),
+    label: text('label').notNull(),
+    dueDate: timestamp('due_date', { withTimezone: true }).notNull(),
+    amountBrl: integer('amount_brl').notNull(),
+    status: text('status').notNull().default('open'),
+  },
+  (t) => [index('sales_ops_receivables_sale_id_idx').on(t.saleId)],
+);
+
+export const salesOpsPayables = pgTable(
+  'sales_ops_payables',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(),
+    saleId: uuid('sale_id')
+      .notNull()
+      .references(() => salesOpsSales.id),
+    beneficiaryName: text('beneficiary_name').notNull(),
+    kind: text('kind').notNull(),
+    dueDate: timestamp('due_date', { withTimezone: true }).notNull(),
+    amountBrl: integer('amount_brl').notNull(),
+    status: text('status').notNull().default('open'),
+  },
+  (t) => [
+    index('sales_ops_payables_org_status_idx').on(t.orgId, t.status),
+    index('sales_ops_payables_sale_id_idx').on(t.saleId),
+  ],
+);

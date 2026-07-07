@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -58,5 +60,34 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  .sales-ops {
+    font-family: 'Figtree', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sales-ops-num {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-feature-settings: 'tnum';
+  }
+
+  .sales-ops input,
+  .sales-ops select,
+  .sales-ops textarea,
+  .sales-ops button {
+    font-family: inherit;
+  }
+
+  .sales-ops ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .sales-ops ::-webkit-scrollbar-thumb {
+    background: #d2d2d8;
+    border: 3px solid transparent;
+    border-radius: 8px;
+    background-clip: padding-box;
   }
 }

@@ -14,6 +14,7 @@ import { hmacVerifyMiddleware } from './domains/conversions/hmac-middleware.js';
 import { conversionsAdminRouter, conversionsRouter } from './domains/conversions/routes.js';
 import { commissionsAdminRouter, commissionsRouter } from './domains/commissions/routes.js';
 import { payoutsAdminRouter, payoutsRouter } from './domains/payouts/routes.js';
+import { salesOpsRouter } from './domains/sales-ops/routes.js';
 import { auditRouter } from './domains/audit/routes.js';
 import { setupNightlyJob } from './jobs/nightly-job.js';
 import { healthRouter } from './routes/health.js';
@@ -66,6 +67,11 @@ app.use('/api/v1/admin/payouts/*', appAuthMiddleware, requireAdmin);
 app.route('/api/v1/admin/payouts', payoutsAdminRouter);
 app.use('/api/v1/payouts/*', appAuthMiddleware);
 app.route('/api/v1/payouts', payoutsRouter);
+
+// ── Sales operations app (prototype migration) ───────────────────────────────
+// Authenticated workspace CRUD for the unified FXL Vendas shell.
+app.use('/api/v1/sales-ops/*', appAuthMiddleware);
+app.route('/api/v1/sales-ops', salesOpsRouter);
 
 // ── Audit log viewer (Phase 05 T12) ──────────────────────────────────────────
 app.use('/api/v1/admin/audit/*', appAuthMiddleware, requireAdmin);

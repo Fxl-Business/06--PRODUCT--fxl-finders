@@ -4,11 +4,12 @@ import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-do
 import { AdminShell } from './admin/layout/AdminShell';
 import { FinderShell } from './components/layout/FinderShell';
 import { SellerShell } from './components/layout/SellerShell';
-import { RoleGuard, RoleRouter } from './components/auth/RoleGuard';
+import { RoleGuard } from './components/auth/RoleGuard';
 import { NoRolePage } from './pages/errors/NoRolePage';
 import { Protected } from './auth/react';
+import { SalesOpsApp } from './sales-ops/SalesOpsApp';
 
-// Lazy-loaded pages — low traffic, keeps the initial bundle small.
+// Lazy-loaded pages - low traffic, keeps the initial bundle small.
 const AppsPage = lazy(() => import('./admin/apps/AppsPage').then((m) => ({ default: m.AppsPage })));
 const ProductsPage = lazy(() =>
   import('./admin/products/ProductsPage').then((m) => ({ default: m.ProductsPage })),
@@ -72,7 +73,7 @@ const routes: RouteObject[] = [
     path: '/',
     element: (
       <Protected>
-        <RoleRouter />
+        <SalesOpsApp />
       </Protected>
     ),
   },
