@@ -2,7 +2,7 @@
  * RLS integration test for the referral_links public-lookup policy (D-E).
  *
  * Proves the bug-distinguishing behavior: a valid `code` lookup under
- * fxl_sales_app with NO tenant context (app.current_org_id unset - exactly
+ * the project DB role with NO tenant context (app.current_org_id unset - exactly
  * what the public /r/[code] handler does) returns the row. Without the
  * referral_links_public_lookup PERMISSIVE SELECT policy this would return 0 rows
  * and every valid code would 410 instead of 302.
@@ -11,7 +11,7 @@
  * org-isolated - the public SELECT policy only widens code lookups, it must NOT
  * leak org A's links into org B's dashboard.
  *
- * Connects as fxl_sales_app per D-G (postgres/admin BYPASS RLS → prove nothing).
+ * Connects as the standard project DB role.
  * Run with: pnpm --filter @fxl-sales/api test:integration
  */
 import postgres from 'postgres';
@@ -19,14 +19,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const TEST_DB_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgresql://fxl_sales_app:fxl_sales_app@localhost:5006/fxl_sales';
-
-const CLEANUP_DB_URL =
-  process.env.TEST_MIGRATE_DATABASE_URL ??
-  process.env.MIGRATE_DATABASE_URL ??
+  process.env.DATABASE_URL ??
   'postgresql://postgres:postgres@localhost:5006/fxl_sales';
 
-describe('RLS: referral_links public-lookup (as fxl_sales_app, D-E)', () => {
+const CLEANUP_DB_URL =
+  process.env.ADMIN_DATABASE_URL ??
+  TEST_DB_URL;
+const ADMIN_CONNECTION_OPTIONS = { connection: { 'app.fxl_admin': 'true' } } as const;
+
+describe('RLS: referral_links public-lookup (D-E)', () => {
   let sql: postgres.Sql;
   let cleanup: postgres.Sql;
 
@@ -41,7 +42,7 @@ describe('RLS: referral_links public-lookup (as fxl_sales_app, D-E)', () => {
 
   beforeAll(async () => {
     sql = postgres(TEST_DB_URL);
-    cleanup = postgres(CLEANUP_DB_URL);
+    cleanup = postgres(CLEANUP_DB_URL, ADMIN_CONNECTION_OPTIONS);
 
     // Guard (D-G): the test role must NOT bypass RLS.
     const rows = await sql<{ rolsuper: boolean; rolbypassrls: boolean; current_user: string }[]>`
@@ -55,8 +56,7 @@ describe('RLS: referral_links public-lookup (as fxl_sales_app, D-E)', () => {
       );
     }
 
-    // Seed FK parents + the referral_links row via the owner connection (RLS bypass
-    // is fine for SEEDING - the assertions below run as fxl_sales_app).
+    // Seed FK parents + the referral_links row via the cleanup connection.
     const [app] = await cleanup`
       INSERT INTO apps (slug, name, publishable_key, secret_key_hash, secret_key_prefix,
                         webhook_signing_secret, allowed_redirect_hosts, status, created_by_user_id)
@@ -96,12 +96,16 @@ describe('RLS: referral_links public-lookup (as fxl_sales_app, D-E)', () => {
   });
 
   afterAll(async () => {
-    await cleanup`DELETE FROM referral_links WHERE code = ${CODE}`;
-    await cleanup`DELETE FROM finders WHERE id IN (${finderAId}, ${finderBId})`;
-    await cleanup`DELETE FROM products WHERE id = ${productId}`;
-    await cleanup`DELETE FROM apps WHERE id = ${appId}`;
-    await sql.end();
-    await cleanup.end();
+    if (cleanup) {
+      await cleanup`DELETE FROM referral_links WHERE code = ${CODE}`;
+      if (finderAId || finderBId) {
+        await cleanup`DELETE FROM finders WHERE id IN (${finderAId || null}, ${finderBId || null})`;
+      }
+      if (productId) await cleanup`DELETE FROM products WHERE id = ${productId}`;
+      if (appId) await cleanup`DELETE FROM apps WHERE id = ${appId}`;
+      await cleanup.end();
+    }
+    if (sql) await sql.end();
   });
 
   it('public lookup by code with NO tenant context returns 1 row (D-E: valid code → 302, not 410)', async () => {

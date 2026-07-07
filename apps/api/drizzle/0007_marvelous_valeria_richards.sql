@@ -161,75 +161,94 @@ CREATE INDEX "sales_ops_sale_professionals_sale_id_idx" ON "sales_ops_sale_profe
 CREATE UNIQUE INDEX "sales_ops_sales_org_sequence_idx" ON "sales_ops_sales" USING btree ("org_id","sequence");--> statement-breakpoint
 CREATE INDEX "sales_ops_sales_org_status_idx" ON "sales_ops_sales" USING btree ("org_id","status");
 --> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE ON sales_ops_clients TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT ON sales_ops_payables TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE ON sales_ops_people TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE ON sales_ops_products TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT ON sales_ops_receivables TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT ON sales_ops_sale_items TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT ON sales_ops_sale_professionals TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT ON sales_ops_sales TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE ON sales_ops_settings TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE, DELETE ON sales_ops_clients TO fxl_sales_admin;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE, DELETE ON sales_ops_payables TO fxl_sales_admin;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE, DELETE ON sales_ops_people TO fxl_sales_admin;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE, DELETE ON sales_ops_products TO fxl_sales_admin;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE, DELETE ON sales_ops_receivables TO fxl_sales_admin;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE, DELETE ON sales_ops_sale_items TO fxl_sales_admin;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE, DELETE ON sales_ops_sale_professionals TO fxl_sales_admin;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE, DELETE ON sales_ops_sales TO fxl_sales_admin;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE, DELETE ON sales_ops_settings TO fxl_sales_admin;--> statement-breakpoint
 ALTER TABLE sales_ops_clients ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE sales_ops_clients FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY sales_ops_clients_tenant_isolation ON sales_ops_clients
-  AS PERMISSIVE FOR ALL TO fxl_sales_app
+  AS PERMISSIVE FOR ALL
   USING (org_id = current_setting('app.current_org_id', true))
   WITH CHECK (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
+CREATE POLICY sales_ops_clients_admin_context ON sales_ops_clients
+  AS PERMISSIVE FOR ALL
+  USING (current_setting('app.fxl_admin', true) = 'true')
+  WITH CHECK (current_setting('app.fxl_admin', true) = 'true');--> statement-breakpoint
 ALTER TABLE sales_ops_payables ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE sales_ops_payables FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY sales_ops_payables_tenant_isolation ON sales_ops_payables
-  AS PERMISSIVE FOR ALL TO fxl_sales_app
+  AS PERMISSIVE FOR ALL
   USING (org_id = current_setting('app.current_org_id', true))
   WITH CHECK (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
+CREATE POLICY sales_ops_payables_admin_context ON sales_ops_payables
+  AS PERMISSIVE FOR ALL
+  USING (current_setting('app.fxl_admin', true) = 'true')
+  WITH CHECK (current_setting('app.fxl_admin', true) = 'true');--> statement-breakpoint
 ALTER TABLE sales_ops_people ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE sales_ops_people FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY sales_ops_people_tenant_isolation ON sales_ops_people
-  AS PERMISSIVE FOR ALL TO fxl_sales_app
+  AS PERMISSIVE FOR ALL
   USING (org_id = current_setting('app.current_org_id', true))
   WITH CHECK (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
+CREATE POLICY sales_ops_people_admin_context ON sales_ops_people
+  AS PERMISSIVE FOR ALL
+  USING (current_setting('app.fxl_admin', true) = 'true')
+  WITH CHECK (current_setting('app.fxl_admin', true) = 'true');--> statement-breakpoint
 ALTER TABLE sales_ops_products ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE sales_ops_products FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY sales_ops_products_tenant_isolation ON sales_ops_products
-  AS PERMISSIVE FOR ALL TO fxl_sales_app
+  AS PERMISSIVE FOR ALL
   USING (org_id = current_setting('app.current_org_id', true))
   WITH CHECK (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
+CREATE POLICY sales_ops_products_admin_context ON sales_ops_products
+  AS PERMISSIVE FOR ALL
+  USING (current_setting('app.fxl_admin', true) = 'true')
+  WITH CHECK (current_setting('app.fxl_admin', true) = 'true');--> statement-breakpoint
 ALTER TABLE sales_ops_receivables ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE sales_ops_receivables FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY sales_ops_receivables_tenant_isolation ON sales_ops_receivables
-  AS PERMISSIVE FOR ALL TO fxl_sales_app
+  AS PERMISSIVE FOR ALL
   USING (org_id = current_setting('app.current_org_id', true))
   WITH CHECK (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
+CREATE POLICY sales_ops_receivables_admin_context ON sales_ops_receivables
+  AS PERMISSIVE FOR ALL
+  USING (current_setting('app.fxl_admin', true) = 'true')
+  WITH CHECK (current_setting('app.fxl_admin', true) = 'true');--> statement-breakpoint
 ALTER TABLE sales_ops_sale_items ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE sales_ops_sale_items FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY sales_ops_sale_items_tenant_isolation ON sales_ops_sale_items
-  AS PERMISSIVE FOR ALL TO fxl_sales_app
+  AS PERMISSIVE FOR ALL
   USING (org_id = current_setting('app.current_org_id', true))
   WITH CHECK (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
+CREATE POLICY sales_ops_sale_items_admin_context ON sales_ops_sale_items
+  AS PERMISSIVE FOR ALL
+  USING (current_setting('app.fxl_admin', true) = 'true')
+  WITH CHECK (current_setting('app.fxl_admin', true) = 'true');--> statement-breakpoint
 ALTER TABLE sales_ops_sale_professionals ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE sales_ops_sale_professionals FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY sales_ops_sale_professionals_tenant_isolation ON sales_ops_sale_professionals
-  AS PERMISSIVE FOR ALL TO fxl_sales_app
+  AS PERMISSIVE FOR ALL
   USING (org_id = current_setting('app.current_org_id', true))
   WITH CHECK (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
+CREATE POLICY sales_ops_sale_professionals_admin_context ON sales_ops_sale_professionals
+  AS PERMISSIVE FOR ALL
+  USING (current_setting('app.fxl_admin', true) = 'true')
+  WITH CHECK (current_setting('app.fxl_admin', true) = 'true');--> statement-breakpoint
 ALTER TABLE sales_ops_sales ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE sales_ops_sales FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY sales_ops_sales_tenant_isolation ON sales_ops_sales
-  AS PERMISSIVE FOR ALL TO fxl_sales_app
+  AS PERMISSIVE FOR ALL
   USING (org_id = current_setting('app.current_org_id', true))
   WITH CHECK (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
+CREATE POLICY sales_ops_sales_admin_context ON sales_ops_sales
+  AS PERMISSIVE FOR ALL
+  USING (current_setting('app.fxl_admin', true) = 'true')
+  WITH CHECK (current_setting('app.fxl_admin', true) = 'true');--> statement-breakpoint
 ALTER TABLE sales_ops_settings ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE sales_ops_settings FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY sales_ops_settings_tenant_isolation ON sales_ops_settings
-  AS PERMISSIVE FOR ALL TO fxl_sales_app
+  AS PERMISSIVE FOR ALL
   USING (org_id = current_setting('app.current_org_id', true))
   WITH CHECK (org_id = current_setting('app.current_org_id', true));
+--> statement-breakpoint
+CREATE POLICY sales_ops_settings_admin_context ON sales_ops_settings
+  AS PERMISSIVE FOR ALL
+  USING (current_setting('app.fxl_admin', true) = 'true')
+  WITH CHECK (current_setting('app.fxl_admin', true) = 'true');

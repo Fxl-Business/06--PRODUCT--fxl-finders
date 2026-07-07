@@ -6,8 +6,8 @@ import { auditLog, finders } from '../../db/schema.js';
  * Admin finders service (Phase 03 T03).
  *
  * Admin-vs-RLS model (D-C): `finders` is FORCE ROW LEVEL SECURITY. These
- * cross-tenant admin operations use the dedicated BYPASSRLS connection
- * getAdminDb() and NEVER call setTenantContext. Every mutation writes audit_log.
+ * cross-tenant admin operations use getAdminDb() with admin session context and
+ * NEVER call setTenantContext. Every mutation writes audit_log.
  */
 
 export type FinderStatus = 'pending' | 'approved' | 'suspended';

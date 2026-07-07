@@ -17,7 +17,7 @@ import {
  *
  * Finder routes: appAuthMiddleware (mounted in server.ts) -> getDb() + tx-scoped
  * setTenantContext (D-D). Admin routes: appAuthMiddleware + requireAdmin (mounted
- * in server.ts) -> getAdminDb() (BYPASSRLS, D-C); every mutation writes audit_log in
+ * in server.ts) -> getAdminDb() with admin session context (D-C); every mutation writes audit_log in
  * the service's tx. There is NO /approve endpoint - D-K replaces it with /lock
  * (pending -> locked fast-track). The `approved` state is never produced in v1.0.
  */
@@ -58,7 +58,7 @@ commissionsRouter.get('/', async (c) => {
   }
 });
 
-// ── Admin routes (getAdminDb() BYPASSRLS, D-C; requireAdmin gate in server.ts) ─
+// ── Admin routes (getAdminDb() admin context, D-C; requireAdmin gate in server.ts) ─
 commissionsAdminRouter.get('/', async (c) => {
   const status = c.req.query('status') as CommissionStatus | undefined;
   const finderId = c.req.query('finderId');

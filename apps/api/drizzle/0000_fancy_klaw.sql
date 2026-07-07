@@ -136,50 +136,10 @@ CREATE UNIQUE INDEX "price_bands_product_component_idx" ON "price_bands" USING b
 CREATE UNIQUE INDEX "products_app_id_slug_idx" ON "products" USING btree ("app_id","slug");--> statement-breakpoint
 CREATE UNIQUE INDEX "webhook_events_source_event_id_idx" ON "webhook_events" USING btree ("source","event_id");--> statement-breakpoint
 -- ============================================================================
--- DB role grants (Phase 01) - APPENDED INTO THE JOURNALED MIGRATION (D-F)
--- fxl_sales_owner  → table owner, runs migrations
--- fxl_sales_app    → runtime role, NO BYPASSRLS, NOT table owner (RLS enforced)
--- fxl_sales_admin  → BYPASSRLS admin/cross-tenant role (see T09b + D-C)
---
--- Role creation is guarded with DO $$ IF NOT EXISTS $$ to survive replay on a
--- shared dev Postgres. LOGIN + PASSWORD are REQUIRED so the runtime + RLS test
--- harness can actually connect as fxl_sales_app (a bare NOLOGIN role cannot
--- open a connection - D-G).
--- ============================================================================
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'fxl_sales_owner') THEN
-    CREATE ROLE fxl_sales_owner;
-  END IF;
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'fxl_sales_app') THEN
-    CREATE ROLE fxl_sales_app LOGIN PASSWORD 'fxl_sales_app';
-  END IF;
-  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'fxl_sales_admin') THEN
-    -- Cross-tenant admin connection (D-C). BYPASSRLS so admin reads/writes span orgs.
-    CREATE ROLE fxl_sales_admin LOGIN PASSWORD 'fxl_sales_admin' BYPASSRLS;
-  END IF;
-END $$;--> statement-breakpoint
--- Tenant-scoped tables: finders, leads
-GRANT SELECT, INSERT, UPDATE ON finders TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE ON leads TO fxl_sales_app;--> statement-breakpoint
--- Global admin-managed tables: apps, products, price_bands, commission_rules
-GRANT SELECT, INSERT, UPDATE ON apps TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE ON products TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE ON price_bands TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT, UPDATE ON commission_rules TO fxl_sales_app;--> statement-breakpoint
--- Cross-org tables: sellers, webhook_events
-GRANT SELECT, INSERT, UPDATE ON sellers TO fxl_sales_app;--> statement-breakpoint
-GRANT SELECT, INSERT ON webhook_events TO fxl_sales_app;--> statement-breakpoint
--- Append-only: audit_log - INSERT + SELECT only, no UPDATE, no DELETE
-GRANT SELECT, INSERT ON audit_log TO fxl_sales_app;--> statement-breakpoint
-GRANT USAGE ON SEQUENCE audit_log_id_seq TO fxl_sales_app;--> statement-breakpoint
--- Admin BYPASSRLS role gets full DML on every table (cross-tenant) - D-C.
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO fxl_sales_admin;--> statement-breakpoint
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO fxl_sales_admin;--> statement-breakpoint
--- ============================================================================
--- RLS policies for tenant-scoped tables (D-F: in the journaled migration).
--- Runs as the migration role (table owner). Runtime role: fxl_sales_app (no
--- BYPASSRLS). Admin uses fxl_sales_admin (BYPASSRLS) - policies below do not
--- apply to it (D-C).
+-- RLS policies for tenant-scoped tables.
+-- The standard FXL database bootstrap creates one database owner role and the
+-- app runs migrations with that same DATABASE_URL. Do not create or grant
+-- cluster roles in journaled migrations.
 -- ============================================================================
 -- ── finders ────────────────────────────────────────────────
 ALTER TABLE finders ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -187,20 +147,27 @@ ALTER TABLE finders FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY finders_tenant_isolation ON finders
   AS PERMISSIVE
   FOR ALL
-  TO fxl_sales_app
   USING (org_id = current_setting('app.current_org_id', true))
   WITH CHECK (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
+CREATE POLICY finders_admin_context ON finders
+  AS PERMISSIVE
+  FOR ALL
+  USING (current_setting('app.fxl_admin', true) = 'true')
+  WITH CHECK (current_setting('app.fxl_admin', true) = 'true');--> statement-breakpoint
 -- ── leads ──────────────────────────────────────────────────
 ALTER TABLE leads ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE leads FORCE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE POLICY leads_tenant_isolation ON leads
   AS PERMISSIVE
   FOR ALL
-  TO fxl_sales_app
   USING (org_id = current_setting('app.current_org_id', true))
   WITH CHECK (org_id = current_setting('app.current_org_id', true));--> statement-breakpoint
--- Tables WITHOUT tenant RLS (access controlled by DB role privilege grants above,
--- and by the fxl_sales_admin BYPASSRLS connection for cross-tenant routes):
+CREATE POLICY leads_admin_context ON leads
+  AS PERMISSIVE
+  FOR ALL
+  USING (current_setting('app.fxl_admin', true) = 'true')
+  WITH CHECK (current_setting('app.fxl_admin', true) = 'true');--> statement-breakpoint
+-- Tables without tenant RLS:
 --   sellers          - cross-org; admin role access only
 --   apps             - global registry; admin-managed
 --   products         - global; admin-managed
@@ -208,7 +175,6 @@ CREATE POLICY leads_tenant_isolation ON leads
 --   commission_rules - global; admin-managed
 --   audit_log        - append-only; admin SELECT; system INSERT
 --   webhook_events   - global; idempotency table
--- Note: fxl_sales_admin (BYPASSRLS) is NOT subject to the policies above (D-C).
 --
 -- ── Tenant context helper (D-D) ────────────────────────────
 -- Called by the service layer INSIDE each transaction:

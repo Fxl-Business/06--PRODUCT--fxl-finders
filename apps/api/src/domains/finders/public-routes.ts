@@ -13,8 +13,8 @@ import { finderSignupSchema } from './signup-schema.js';
  * DB access (D-H + brief KEY reminder): `finders` is FORCE ROW LEVEL SECURITY
  * with a single policy `org_id = current_setting('app.current_org_id', true)`.
  * A public INSERT with org_id='' and no setTenantContext would FAIL the WITH
- * CHECK under the app role (current_setting → NULL). The signup write therefore
- * goes via getAdminDb() (BYPASSRLS), exactly as the admin approve/suspend writes
+ * CHECK under the app role (current_setting -> NULL). The signup write therefore
+ * goes via getAdminDb(), exactly as the admin approve/suspend writes
  * do. (Plan A3 said getDb(); the brief's "signup/approval writes go via
  * getAdminDb()" reminder is authoritative and supersedes it.)
  *
@@ -32,7 +32,7 @@ findersPublicRouter.post('/signup', zValidator('json', finderSignupSchema), asyn
     return c.json({ id: crypto.randomUUID(), status: 'pending' }, 201);
   }
 
-  const db = getAdminDb(); // BYPASSRLS - org_id='' placeholder is invisible to tenant RLS
+  const db = getAdminDb(); // admin context - org_id='' placeholder is outside tenant RLS
   const [finder] = await db
     .insert(finders)
     .values({

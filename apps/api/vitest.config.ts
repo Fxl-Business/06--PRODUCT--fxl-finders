@@ -12,8 +12,7 @@ import { defineConfig } from 'vitest/config';
  *                                plus *.integration.test.ts files and runs the
  *                                migrate-first globalSetup.
  *
- * The RLS integration tests connect as the unprivileged fxl_sales_app role
- * (NOT postgres/superuser) so RLS is actually exercised (D-G).
+ * The integration tests connect through the standard project DATABASE_URL.
  */
 const isIntegration = process.env.VITEST_INTEGRATION === '1';
 

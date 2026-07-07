@@ -7,7 +7,7 @@
  * returned. Exercises the REAL service fn (not a raw query) so the D-D
  * transaction wrapping + RLS are validated end-to-end.
  *
- * Connects via getDb() pointed at fxl_sales_app (D-G). Run with:
+ * Connects via the standard project DB URL. Run with:
  *   pnpm --filter @fxl-sales/api test:integration
  */
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -18,11 +18,12 @@ import { listFinderLinks } from '../../src/domains/links/service.js';
 
 const TEST_DB_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgresql://fxl_sales_app:fxl_sales_app@localhost:5006/fxl_sales';
-const CLEANUP_DB_URL =
-  process.env.TEST_MIGRATE_DATABASE_URL ??
-  process.env.MIGRATE_DATABASE_URL ??
+  process.env.DATABASE_URL ??
   'postgresql://postgres:postgres@localhost:5006/fxl_sales';
+const CLEANUP_DB_URL =
+  process.env.ADMIN_DATABASE_URL ??
+  TEST_DB_URL;
+const ADMIN_CONNECTION_OPTIONS = { connection: { 'app.fxl_admin': 'true' } } as const;
 
 describe('listFinderLinks cross-tenant isolation (D-D)', () => {
   let client: postgres.Sql;
@@ -42,7 +43,7 @@ describe('listFinderLinks cross-tenant isolation (D-D)', () => {
   beforeAll(async () => {
     client = postgres(TEST_DB_URL, { max: 5 });
     db = drizzle(client, { schema });
-    cleanup = postgres(CLEANUP_DB_URL);
+    cleanup = postgres(CLEANUP_DB_URL, ADMIN_CONNECTION_OPTIONS);
 
     // RLS guard (D-G).
     const rows = await client<{ rolsuper: boolean; rolbypassrls: boolean }[]>`
@@ -81,12 +82,16 @@ describe('listFinderLinks cross-tenant isolation (D-D)', () => {
   });
 
   afterAll(async () => {
-    await cleanup`DELETE FROM referral_links WHERE finder_id IN (${finderAId}, ${finderBId})`;
-    await cleanup`DELETE FROM finders WHERE id IN (${finderAId}, ${finderBId})`;
-    await cleanup`DELETE FROM products WHERE id = ${productId}`;
-    await cleanup`DELETE FROM apps WHERE id = ${appId}`;
-    await client.end();
-    await cleanup.end();
+    if (cleanup) {
+      await cleanup`DELETE FROM referral_links WHERE finder_id IN (${finderAId}, ${finderBId})`;
+      if (finderAId || finderBId) {
+        await cleanup`DELETE FROM finders WHERE id IN (${finderAId || null}, ${finderBId || null})`;
+      }
+      if (productId) await cleanup`DELETE FROM products WHERE id = ${productId}`;
+      if (appId) await cleanup`DELETE FROM apps WHERE id = ${appId}`;
+      await cleanup.end();
+    }
+    if (client) await client.end();
   });
 
   it('org A finder sees its own link (positive control)', async () => {

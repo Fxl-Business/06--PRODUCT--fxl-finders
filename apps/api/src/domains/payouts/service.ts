@@ -6,19 +6,20 @@ import { commissions, finders, payouts } from '../../db/schema.js';
 import { writeAuditEntry } from '../audit/service.js';
 
 /**
- * Payouts domain service (Phase 05 T08 + Phase 06 T03, D-Q — Phase 05 OWNS the single
+ * Payouts domain service (Phase 05 T08 + Phase 06 T03, D-Q - Phase 05 OWNS the single
  * payouts table; Phase 06 EXTENDS it with listFindersWithLockedCommissions + generateCsv).
  *
  * NO payout_batches, NO payout_batch_id, NO in_payout status. payouts has NO RLS
- * (admin-managed cross-tenant). Admin paths run on getAdminDb() (BYPASSRLS, D-C) and
- * write audit_log in the same tx. Finder reads own payouts via getDb() + setTenantContext.
+ * (admin-managed cross-tenant). Admin paths run on getAdminDb() with the admin
+ * session context (D-C) and write audit_log in the same tx. Finder reads own
+ * payouts via getDb() + setTenantContext.
  *
  * Reserve semantics (D-Q): createPayoutBatch stamps commissions.paid_payout_id while
  * they STAY 'locked'; markPayoutPaid is the ONLY place that flips commissions locked→paid.
  *
  * Two-person payout approval is DEFERRED to v1.1 (D6 / failure-list #8): the payouts
  * table has NO approved_by_* columns, there is no second-approver gate, and the v1.0 UI
- * shows no approval badge. v1.0 is single-approver — any admin can mark a payout paid.
+ * shows no approval badge. v1.0 is single-approver - any admin can mark a payout paid.
  */
 
 type AdminDb = ReturnType<typeof getAdminDb>;
@@ -86,7 +87,7 @@ export async function createPayoutBatch(
       .returning();
     if (!payout) throw new Error('payout_insert_failed');
 
-    // 5. RESERVE (D-Q): stamp paid_payout_id — status STAYS 'locked' (no paid/paid_at here).
+    // 5. RESERVE (D-Q): stamp paid_payout_id - status STAYS 'locked' (no paid/paid_at here).
     await tx
       .update(commissions)
       .set({ paidPayoutId: payout.id, updatedAt: new Date() })
@@ -165,7 +166,7 @@ export async function getPayoutsByFinder(
 /**
  * A finder with locked, not-yet-reserved commissions ready for payout.
  *
- * Finders missing cpf/pix_key are NOT dropped — they are returned with
+ * Finders missing cpf/pix_key are NOT dropped - they are returned with
  * payable=false + blockedReason so the admin UI can show them with a disabled
  * checkbox (D-Q). They MUST NOT cause a NOT NULL crash anywhere downstream.
  */
@@ -183,7 +184,7 @@ export interface FinderCommissionSummary {
 
 /**
  * Lists finders that have locked commissions not yet reserved to a payout
- * (paid_payout_id IS NULL). Runs on getAdminDb() (BYPASSRLS, D-C) — no
+ * (paid_payout_id IS NULL). Runs on getAdminDb() with admin session context (D-C), no
  * setTenantContext. Groups commissions per finder in app code (avoids relying on
  * a specific Drizzle aggregate API); the volume here is bounded by # of finders
  * with open commissions, so an in-memory group is acceptable for v1.0.
@@ -262,7 +263,7 @@ export interface CsvPayoutLine {
 }
 
 /**
- * PURE CSV builder (D4) — separated from the DB fetch so the byte contract is
+ * PURE CSV builder (D4) - separated from the DB fetch so the byte contract is
  * unit-testable without a DB. UTF-8 BOM + pinned header row + one row per payout.
  * amount_brl uses pt-BR formatting (thousands '.', decimal ',', no currency symbol);
  * commission_ids is the comma-joined UUID list, double-quoted. Empty input → BOM +
@@ -290,7 +291,7 @@ export function buildCsvBuffer(rows: CsvPayoutLine[]): Buffer {
  * Generates the payout CSV for the named payouts (D4). Fetches each payout + its
  * finder snapshot + its reserved commission ids, then defers byte-formatting to the
  * pure buildCsvBuffer. Order follows the caller's payoutIds. Runs on getAdminDb()
- * (BYPASSRLS, D-C).
+ * with admin session context (D-C).
  */
 export async function generateCsv(adminDb: AdminDb, payoutIds: string[]): Promise<Buffer> {
   if (payoutIds.length === 0) return buildCsvBuffer([]);

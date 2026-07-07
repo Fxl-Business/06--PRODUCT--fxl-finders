@@ -18,7 +18,7 @@ import {
 
 /**
  * Admin products routes (Phase 02, T05). Inherits appAuthMiddleware +
- * requireAdmin from the parent adminRouter. Uses getAdminDb() (BYPASSRLS) -
+ * requireAdmin from the parent adminRouter. Uses getAdminDb() -
  * admin tables have NO RLS. NEVER setTenantContext.
  */
 export const adminProductsRouter = new Hono();

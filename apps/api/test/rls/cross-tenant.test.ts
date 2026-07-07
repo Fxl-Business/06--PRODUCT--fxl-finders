@@ -5,10 +5,9 @@
  * see test/rls/global-setup.ts).
  * Run with: pnpm --filter @fxl-sales/api test:integration
  *
- * CRITICAL (D-G): the test connection authenticates as fxl_sales_app, NOT the
- * postgres superuser. The postgres superuser and the fxl_sales_admin BYPASSRLS
- * role both BYPASS RLS - testing as either proves NOTHING. A beforeAll guard
- * fails loudly if TEST_DATABASE_URL points at a superuser/BYPASSRLS role.
+ * The test connection should be the standard non-superuser project DB role.
+ * A beforeAll guard fails loudly if TEST_DATABASE_URL points at a superuser or
+ * a role with RLS bypass.
  *
  * Coverage for the two tenant-scoped tables (finders, leads):
  *   1. positive control - org A reads its own row → exactly 1 row
@@ -19,26 +18,23 @@
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-// fxl_sales_app login - NOT postgres. globalSetup applies migrations first
-// (with an owner/superuser URL); this URL is the RLS-enforced runtime role.
 const TEST_DB_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgresql://fxl_sales_app:fxl_sales_app@localhost:5006/fxl_sales';
-
-// Owner/superuser URL used ONLY for test-row cleanup (the app role is granted
-// SELECT/INSERT/UPDATE but not DELETE in the Phase 01 migration).
-const CLEANUP_DB_URL =
-  process.env.TEST_MIGRATE_DATABASE_URL ??
-  process.env.MIGRATE_DATABASE_URL ??
+  process.env.DATABASE_URL ??
   'postgresql://postgres:postgres@localhost:5006/fxl_sales';
 
-describe('RLS: cross-tenant isolation (as fxl_sales_app)', () => {
+const CLEANUP_DB_URL =
+  process.env.ADMIN_DATABASE_URL ??
+  TEST_DB_URL;
+const ADMIN_CONNECTION_OPTIONS = { connection: { 'app.fxl_admin': 'true' } } as const;
+
+describe('RLS: cross-tenant isolation', () => {
   let sql: postgres.Sql;
   let cleanup: postgres.Sql;
 
   beforeAll(async () => {
     sql = postgres(TEST_DB_URL);
-    cleanup = postgres(CLEANUP_DB_URL);
+    cleanup = postgres(CLEANUP_DB_URL, ADMIN_CONNECTION_OPTIONS);
     // Guard: fail loudly if someone points TEST_DATABASE_URL at a superuser/BYPASSRLS role.
     const rows = await sql<{ rolsuper: boolean; rolbypassrls: boolean; current_user: string }[]>`
       SELECT rolsuper, rolbypassrls, current_user

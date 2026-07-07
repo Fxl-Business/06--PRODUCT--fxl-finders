@@ -7,10 +7,10 @@ import { promoteHoldExpired } from '../domains/commissions/service.js';
  *
  * Promotes commissions pending→locked WHERE hold_until < now() (D-K: no `approved`
  * step). A freshly-ingested commission (status='pending') reaches 'locked' here with
- * NO manual action — this is the auto path. Runs on getAdminDb() (BYPASSRLS) because
- * it is cross-tenant with no JWT (D-C).
+ * NO manual action - this is the auto path. Runs on getAdminDb() with the
+ * admin session context because it is cross-tenant with no JWT (D-C).
  *
- * Schedule: 03:00 UTC daily via node-cron (single scheduler instance in apps/api —
+ * Schedule: 03:00 UTC daily via node-cron (single scheduler instance in apps/api -
  * Phase 06 must register any payout job on THIS scheduler, not a second one).
  * Manual trigger: POST /api/v1/admin/commissions/promote-locked (requireAdmin).
  * v1.1 upgrade path: extract to a BullMQ worker for distributed deploys.
@@ -25,7 +25,7 @@ export function setupNightlyJob(): void {
       const promoted = await promoteHoldExpired(getAdminDb());
       console.log(`[nightly-job] hold promotion: ${promoted} commissions promoted pending→locked`);
     } catch (err) {
-      // Never crash the process — log and let the next run retry.
+      // Never crash the process - log and let the next run retry.
       console.error('[nightly-job] hold promotion failed:', err);
     }
   });
@@ -37,7 +37,7 @@ export async function runHoldPromotion(): Promise<{ promoted: number }> {
   return { promoted };
 }
 
-/** Graceful shutdown — stop the scheduled task (plan-brief Wave 4 failure-list). */
+/** Graceful shutdown - stop the scheduled task (plan-brief Wave 4 failure-list). */
 export function stopNightlyJob(): void {
   if (task) {
     task.stop();

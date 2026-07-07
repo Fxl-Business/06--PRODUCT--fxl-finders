@@ -17,7 +17,7 @@ import {
  * Admin apps routes (Phase 02, T04). All routes inherit appAuthMiddleware +
  * requireAdmin from the parent adminRouter mount - do NOT re-apply auth here.
  *
- * Uses getAdminDb() (BYPASSRLS) - admin tables have NO RLS. NEVER setTenantContext.
+ * Uses getAdminDb() - admin tables have NO RLS. NEVER setTenantContext.
  */
 export const adminAppsRouter = new Hono();
 

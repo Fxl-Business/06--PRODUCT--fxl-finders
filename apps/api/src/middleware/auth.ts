@@ -20,7 +20,7 @@ declare module 'hono' {
  *     // ...queries via tx...
  *   });
  *
- * Admin/cross-tenant routes use getAdminDb() (BYPASSRLS) and NEVER call this (D-C).
+ * Admin/cross-tenant routes use getAdminDb() and NEVER call this (D-C).
  */
 export async function setTenantContext(
   // Structural type: any Drizzle transaction handle exposes `execute`. Using the

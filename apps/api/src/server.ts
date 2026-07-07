@@ -56,7 +56,7 @@ app.route('/api/v1/admin', adminRouter);
 
 // ── Commissions (Phase 05 T08) ───────────────────────────────────────────────
 // Finder reads: getDb() + setTenantContext (D-D). Admin transitions: getAdminDb()
-// (BYPASSRLS, D-C). requireAdmin gates the admin sub-tree (D-B). NOTE: the admin
+// with the admin session context (D-C). requireAdmin gates the admin sub-tree (D-B). NOTE: the admin
 // group is mounted BEFORE the finder group so /admin/* never falls through to it.
 app.use('/api/v1/admin/commissions/*', appAuthMiddleware, requireAdmin);
 app.route('/api/v1/admin/commissions', commissionsAdminRouter);
