@@ -18,8 +18,8 @@ import {
 
 /**
  * Payouts domain routes (Phase 05 T08 + Phase 06 T05, D-Q). Admin routes run on
- * getAdminDb() (BYPASSRLS, D-C) behind requireAdmin (mounted in server.ts). Finder
- * route runs on getDb() + tx-scoped setTenantContext (D-D).
+ * getAdminDb() with admin session context (D-C) behind requireAdmin (mounted in
+ * server.ts). Finder route runs on getDb() + tx-scoped setTenantContext (D-D).
  */
 export const payoutsRouter = new Hono();
 export const payoutsAdminRouter = new Hono();
@@ -60,7 +60,7 @@ payoutsRouter.get('/', async (c) => {
   }
 });
 
-// ── Admin routes (getAdminDb() BYPASSRLS, D-C; requireAdmin gate in server.ts) ─
+// ── Admin routes (getAdminDb() admin context, D-C; requireAdmin gate in server.ts) ─
 payoutsAdminRouter.get('/', async (c) => {
   const finderId = c.req.query('finderId');
   const rows = await getPayoutsAdmin(getAdminDb(), finderId);
@@ -108,16 +108,16 @@ payoutsAdminRouter.post('/:payoutId/mark-paid', async (c) => {
 
 // ── Phase 06 T05 additions (D-Q) ─────────────────────────────────────────────
 
-// GET /api/v1/admin/payouts/finders-ready — finders with locked, not-yet-reserved
+// GET /api/v1/admin/payouts/finders-ready - finders with locked, not-yet-reserved
 // commissions. Includes payable=false rows (missing cpf/pix_key) with blockedReason.
 payoutsAdminRouter.get('/finders-ready', async (c) => {
   const finders = await listFindersWithLockedCommissions(getAdminDb());
   return c.json({ finders });
 });
 
-// POST /api/v1/admin/payouts/batches — creates ONE payouts row per finder (per-finder
+// POST /api/v1/admin/payouts/batches - creates ONE payouts row per finder (per-finder
 // createPayoutBatch reserves that finder's locked commissions). 422 finder_not_payable
-// if any selected finder lacks cpf/pix_key (D-Q) — and that finder gets no payout row.
+// if any selected finder lacks cpf/pix_key (D-Q) - and that finder gets no payout row.
 payoutsAdminRouter.post('/batches', async (c) => {
   const parsed = CreateBatchesSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) {
@@ -161,7 +161,7 @@ payoutsAdminRouter.post('/batches', async (c) => {
   return c.json({ payouts: created }, 201);
 });
 
-// GET /api/v1/admin/payouts/batches/:id/csv — :id is a single payout id or a
+// GET /api/v1/admin/payouts/batches/:id/csv - :id is a single payout id or a
 // comma-separated list. Streams a UTF-8 BOM CSV (D4) as an attachment.
 payoutsAdminRouter.get('/batches/:id/csv', async (c) => {
   const idParam = c.req.param('id');

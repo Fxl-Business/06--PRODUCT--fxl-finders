@@ -20,11 +20,11 @@ import { writeAuditEntry } from '../audit/service.js';
 /**
  * Conversions domain service (Phase 05 T05).
  *
- * ingestConversion runs on getAdminDb() (BYPASSRLS, D-C): the webhook is a cross-tenant
- * path with NO finder JWT and must SELECT clicks / finders / commission_rules (all
- * tenant-scoped FORCE RLS) without a tenant context. setTenantContext is NEVER called
- * here. The split WITH CHECK(true) INSERT policies (D10) keep the app-role webhook path
- * viable for the writes, but the cross-tenant READS require the BYPASSRLS connection.
+ * ingestConversion runs on getAdminDb() with admin session context (D-C): the webhook
+ * is a cross-tenant path with NO finder JWT and must SELECT clicks / finders /
+ * commission_rules without a tenant context. setTenantContext is NEVER called here.
+ * The split WITH CHECK(true) INSERT policies (D10) keep the app webhook path viable
+ * for writes, but cross-tenant READS require the admin context.
  * The route handler passes in rawBodyHash (D-L) - the service stores it verbatim in
  * webhook_events.body_hash and does NOT recompute a hash of the parsed body.
  *

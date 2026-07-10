@@ -25,9 +25,10 @@ import { buildIdempotencyKey } from '../../src/domains/conversions/service.js';
 
 const SOURCE = 'fxl-financiero'; // D-A canonical slug (…ciero) - byte-identical to the seed
 const SEED_DB_URL =
-  process.env.TEST_MIGRATE_DATABASE_URL ??
-  process.env.MIGRATE_DATABASE_URL ??
+  process.env.TEST_DATABASE_URL ??
+  process.env.DATABASE_URL ??
   'postgresql://postgres:postgres@localhost:5006/fxl_sales';
+const ADMIN_CONNECTION_OPTIONS = { connection: { 'app.fxl_admin': 'true' } } as const;
 
 /** Assemble the conversion webhook path exactly as server.ts does (HMAC before route). */
 function buildApp() {
@@ -59,7 +60,7 @@ describe('conversion webhook contract (Phase 06 T13, D-M/D-N/D-O)', () => {
   const externalOrderId = 'org_attr_' + stamp;
 
   beforeAll(async () => {
-    seed = postgres(SEED_DB_URL);
+    seed = postgres(SEED_DB_URL, ADMIN_CONNECTION_OPTIONS);
 
     // The T01 seed (run by global-setup migrations) created the fxl-financiero app.
     const [app] = await seed`

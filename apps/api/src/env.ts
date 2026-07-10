@@ -28,8 +28,7 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(3006),
   CORS_ORIGIN: z.string().url().default('http://localhost:8006'),
   DATABASE_URL: emptyToUndefined,
-  // Admin / cross-tenant DB connection (D-C). Authenticates as the BYPASSRLS
-  // role (fxl_sales_admin). Backend-only - NEVER VITE_-prefixed.
+  // Optional admin DB override. Standard FXL deployments use DATABASE_URL only.
   ADMIN_DATABASE_URL: emptyToUndefined,
   FXL_HUB_API_URL: emptyToUndefinedUrl,
   FXL_HUB_PUBLISHABLE_KEY: emptyToUndefined,

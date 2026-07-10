@@ -1,7 +1,7 @@
 /**
  * Conversion ingest + commission + audit integration test (Phase 05 T13).
  *
- * Exercises the REAL ingestConversion on the BYPASSRLS admin connection (D-C): the
+ * Exercises the REAL ingestConversion on the admin DB handle: the
  * webhook is cross-tenant with no JWT and must read clicks/finders/commission_rules.
  * Asserts: idempotency dedupe (webhook_events + conversions.idempotency_key), quoted
  * snapshot (D-L), customer_email_hash, leads PII row, commission calc (setup+recurring,
@@ -25,11 +25,12 @@ import { verifyChain, type AuditChainRow } from '../../src/domains/audit/service
 
 const ADMIN_DB_URL =
   process.env.ADMIN_DATABASE_URL ??
-  'postgresql://fxl_sales_admin:fxl_sales_admin@localhost:5006/fxl_sales';
-const SEED_DB_URL =
-  process.env.TEST_MIGRATE_DATABASE_URL ??
-  process.env.MIGRATE_DATABASE_URL ??
+  process.env.TEST_DATABASE_URL ??
+  process.env.DATABASE_URL ??
   'postgresql://postgres:postgres@localhost:5006/fxl_sales';
+const SEED_DB_URL =
+  ADMIN_DB_URL;
+const ADMIN_CONNECTION_OPTIONS = { connection: { 'app.fxl_admin': 'true' } } as const;
 
 describe('conversion ingest + commission + audit (Phase 05)', () => {
   let adminClient: postgres.Sql;
@@ -47,9 +48,9 @@ describe('conversion ingest + commission + audit (Phase 05)', () => {
   let linkId = '';
 
   beforeAll(async () => {
-    adminClient = postgres(ADMIN_DB_URL, { max: 5 });
+    adminClient = postgres(ADMIN_DB_URL, { max: 5, ...ADMIN_CONNECTION_OPTIONS });
     adminDb = drizzle(adminClient, { schema });
-    seed = postgres(SEED_DB_URL);
+    seed = postgres(SEED_DB_URL, ADMIN_CONNECTION_OPTIONS);
 
     const [app] = await seed`
       INSERT INTO apps (slug, name, publishable_key, secret_key_hash, secret_key_prefix,

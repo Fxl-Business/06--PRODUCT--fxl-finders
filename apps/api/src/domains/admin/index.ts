@@ -25,6 +25,6 @@ adminRouter.use('*', requireAdmin);
 adminRouter.route('/apps', adminAppsRouter);
 adminRouter.route('/products', adminProductsRouter);
 // Phase 03: finders approval queue + sellers admin. finders is FORCE RLS - the
-// service layer uses getAdminDb() (BYPASSRLS) for cross-tenant reads/writes (D-C).
+// service layer uses getAdminDb() for cross-tenant reads/writes (D-C).
 adminRouter.route('/finders', findersAdminRouter);
 adminRouter.route('/sellers', sellersAdminRouter);

@@ -9,12 +9,13 @@ import * as schema from './schema.js';
  *
  * Access pattern (D-H): use getDb() / getAdminDb(). There is intentionally NO
  * `db` singleton and NO `db/index.ts` barrel.
- *   - getDb()      → runtime connection (role fxl_sales_app, RLS ENFORCED).
+ *   - getDb()      -> standard runtime connection.
  *                    Tenant-scoped service fns wrap work in a transaction and
  *                    call setTenantContext(tx, orgId) before any query (D-D).
- *   - getAdminDb() → admin/cross-tenant connection (role fxl_sales_admin,
- *                    BYPASSRLS). Used ONLY by admin domain routes that span orgs.
- *                    NEVER call setTenantContext on this connection (D-C).
+ *   - getAdminDb() -> cross-tenant service connection. By default this reuses
+ *                    DATABASE_URL to match the standard FXL single-role DB
+ *                    pattern, with an admin session setting for forced RLS.
+ *                    ADMIN_DATABASE_URL is only an optional override.
  */
 
 let _client: ReturnType<typeof postgres> | null = null;
@@ -34,19 +35,33 @@ export function getDb() {
 let _adminClient: ReturnType<typeof postgres> | null = null;
 let _adminDb: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
+const adminConnectionOptions = {
+  connection: {
+    'app.fxl_admin': 'true',
+  },
+} as const;
+
+export function resolveAdminDatabaseUrl(dbEnv: {
+  DATABASE_URL?: string;
+  ADMIN_DATABASE_URL?: string;
+}): string | undefined {
+  return dbEnv.ADMIN_DATABASE_URL ?? dbEnv.DATABASE_URL;
+}
+
 /**
- * Admin / cross-tenant DB connection (D-C). Authenticates as the BYPASSRLS role
- * (fxl_sales_admin). Used ONLY by admin domain routes that legitimately span
- * orgs (Phase 03 finders approve/suspend; Phase 05 commissions/conversions admin
- * reads + state transitions; Phase 06 payouts). NEVER call setTenantContext on
- * this connection. Every admin money mutation must still write audit_log.
+ * Admin / cross-tenant DB connection. Used ONLY by admin domain routes that
+ * legitimately span orgs. It normally reuses DATABASE_URL; a separate
+ * ADMIN_DATABASE_URL can still be supplied for local experiments or future
+ * infrastructure, but it is no longer required. The admin session setting is
+ * what makes forced RLS policies admit cross-tenant service paths.
  */
 export function getAdminDb() {
-  if (!env.ADMIN_DATABASE_URL) {
-    throw new Error('ADMIN_DATABASE_URL not configured. Set it in apps/api/.env');
+  const url = resolveAdminDatabaseUrl(env);
+  if (!url) {
+    throw new Error('DATABASE_URL not configured. Set it in apps/api/.env');
   }
   if (!_adminDb) {
-    _adminClient = postgres(env.ADMIN_DATABASE_URL, { max: 5 });
+    _adminClient = postgres(url, { max: 5, ...adminConnectionOptions });
     _adminDb = drizzle(_adminClient, { schema });
   }
   return _adminDb;

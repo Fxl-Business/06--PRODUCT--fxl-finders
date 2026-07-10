@@ -1,10 +1,10 @@
 /**
  * conversions + commissions split-RLS integration test (Phase 05 T13, D10/D-G).
  *
- * Proves the split-INSERT pattern: the app role can INSERT a conversion/commission
+ * Proves the split-INSERT pattern: the app can INSERT a conversion/commission
  * WITHOUT a tenant context (webhook path, conversions_insert_webhook WITH CHECK(true)),
  * and a finder reading under setTenantContext sees ONLY its own org's rows (positive
- * control + cross-org zero). Connects as the unprivileged fxl_sales_app role (D-G).
+ * control + cross-org zero).
  */
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql } from 'drizzle-orm';
@@ -15,11 +15,12 @@ import { conversions } from '../../src/db/schema.js';
 
 const APP_DB_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgresql://fxl_sales_app:fxl_sales_app@localhost:5006/fxl_sales';
-const SEED_DB_URL =
-  process.env.TEST_MIGRATE_DATABASE_URL ??
-  process.env.MIGRATE_DATABASE_URL ??
+  process.env.DATABASE_URL ??
   'postgresql://postgres:postgres@localhost:5006/fxl_sales';
+const SEED_DB_URL =
+  process.env.ADMIN_DATABASE_URL ??
+  APP_DB_URL;
+const ADMIN_CONNECTION_OPTIONS = { connection: { 'app.fxl_admin': 'true' } } as const;
 
 describe('conversions/commissions split-RLS (D10/D-G)', () => {
   let appClient: postgres.Sql;
@@ -37,7 +38,7 @@ describe('conversions/commissions split-RLS (D10/D-G)', () => {
   beforeAll(async () => {
     appClient = postgres(APP_DB_URL, { max: 5 });
     appDb = drizzle(appClient, { schema });
-    seed = postgres(SEED_DB_URL);
+    seed = postgres(SEED_DB_URL, ADMIN_CONNECTION_OPTIONS);
 
     const rows = await appClient<{ rolsuper: boolean; rolbypassrls: boolean }[]>`
       SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user`;
@@ -70,12 +71,14 @@ describe('conversions/commissions split-RLS (D10/D-G)', () => {
   });
 
   afterAll(async () => {
-    await seed`DELETE FROM conversions WHERE org_id IN (${ORG_A}, ${ORG_B})`;
-    await seed`DELETE FROM finders WHERE id = ${finderAId}`;
-    await seed`DELETE FROM products WHERE id = ${productId}`;
-    await seed`DELETE FROM apps WHERE id = ${appId}`;
-    await appClient.end();
-    await seed.end();
+    if (seed) {
+      await seed`DELETE FROM conversions WHERE org_id IN (${ORG_A}, ${ORG_B})`;
+      if (finderAId) await seed`DELETE FROM finders WHERE id = ${finderAId}`;
+      if (productId) await seed`DELETE FROM products WHERE id = ${productId}`;
+      if (appId) await seed`DELETE FROM apps WHERE id = ${appId}`;
+      await seed.end();
+    }
+    if (appClient) await appClient.end();
   });
 
   it('app role can INSERT a conversion with NO tenant context (webhook split-INSERT)', async () => {
@@ -83,7 +86,7 @@ describe('conversions/commissions split-RLS (D10/D-G)', () => {
     // write. NOTE: under FORCE RLS, `INSERT ... RETURNING` re-reads the new row through the
     // SELECT policy, which (with no tenant context) would filter it and surface as an RLS
     // error - so the webhook split-INSERT path deliberately does NOT use RETURNING here.
-    // The runtime ingest uses the BYPASSRLS admin connection anyway (D-C). We assert the
+    // The runtime ingest uses the admin DB handle. We assert the
     // INSERT itself is permitted, then confirm via the seed connection.
     await appDb.insert(conversions).values({
       source: 'app-ccr-' + stamp,

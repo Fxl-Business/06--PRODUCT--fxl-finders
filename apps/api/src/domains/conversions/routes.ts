@@ -12,14 +12,14 @@ import { RefundBodySchema, WebhookBodySchema, ingestConversion } from './service
  * POST / and POST /refund are the inbound webhook path - no product JWT.
  * The hmacVerifyMiddleware is applied at the mount in server.ts and
  * stamps rawBodyHash on the context (D-L). The admin GET is gated by requireAdmin
- * (mounted in server.ts) and reads via getAdminDb() (BYPASSRLS, D-C).
+ * (mounted in server.ts) and reads via getAdminDb() with admin session context (D-C).
  */
 export const conversionsRouter = new Hono();
 
 /**
  * Admin reconciliation router - SEPARATE from conversionsRouter so the HMAC
  * webhook middleware never runs on admin reads. Mounted under appAuthMiddleware
- * + requireAdmin in server.ts; reads via getAdminDb() (BYPASSRLS, D-C).
+ * + requireAdmin in server.ts; reads via getAdminDb() with admin session context (D-C).
  */
 export const conversionsAdminRouter = new Hono();
 
@@ -46,9 +46,9 @@ conversionsRouter.post('/', async (c) => {
   try {
     // D-C: the webhook is a cross-tenant path with NO finder JWT - it must SELECT
     // clicks/finders/commission_rules (all tenant-scoped FORCE RLS) without a tenant
-    // context. Run ingest on getAdminDb() (BYPASSRLS). The split WITH CHECK(true)
-    // INSERT policies keep the app-role webhook path viable too, but the cross-tenant
-    // READS require the BYPASSRLS connection. No setTenantContext on this path.
+    // context. Run ingest on getAdminDb() with admin session context. The split
+    // WITH CHECK(true) INSERT policies keep the app webhook path viable too, but
+    // the cross-tenant READS require the admin context. No setTenantContext here.
     const result = await ingestConversion(getAdminDb(), parsed.data, rawBodyHash);
     if (result.isDuplicate) {
       return c.json({ status: 'duplicate' }, 200);
@@ -81,8 +81,8 @@ conversionsRouter.post('/refund', async (c) => {
   return c.json({ status: 'reversed', count }, 200);
 });
 
-// GET / on the admin router → mounted at /api/v1/conversions/admin (requireAdmin gate
-// in server.ts; BYPASSRLS). Resolves finder/seller display names so the UI never
+// GET / on the admin router -> mounted at /api/v1/conversions/admin (requireAdmin gate
+// in server.ts). Resolves finder/seller display names so the UI never
 // renders raw UUIDs.
 conversionsAdminRouter.get('/', async (c) => {
   const source = c.req.query('source');

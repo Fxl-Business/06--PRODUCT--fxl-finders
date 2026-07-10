@@ -7,9 +7,9 @@ import { apps, commissionRules, priceBands, products } from '../../../db/schema.
  * Admin products / price-bands / commission-rules service (Phase 02, T05).
  *
  * products, price_bands, commission_rules are global admin-managed tables with
- * NO RLS — this service runs on getAdminDb() (BYPASSRLS) and NEVER calls
+ * NO RLS. This service runs on getAdminDb() and NEVER calls
  * setTenantContext. Money flows as int cents; rates as numeric(5,2) (string in
- * Drizzle — cast with Number() on read, String() on write).
+ * Drizzle - cast with Number() on read, String() on write).
  */
 
 type Db = ReturnType<typeof getAdminDb>;
@@ -29,7 +29,7 @@ export const CreateProductSchema = z.object({
   status: z.enum(['active', 'archived']).default('active'),
 });
 
-// appId is immutable — omitted so it can never flow through an update.
+// appId is immutable - omitted so it can never flow through an update.
 export const UpdateProductSchema = CreateProductSchema.omit({ appId: true }).partial();
 
 export const UpsertPriceBandSchema = z

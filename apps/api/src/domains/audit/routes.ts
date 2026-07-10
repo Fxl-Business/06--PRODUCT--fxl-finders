@@ -5,11 +5,12 @@ import { auditLog } from '../../db/schema.js';
 import { verifyChain, type AuditChainRow } from './service.js';
 
 /**
- * Audit log read routes (Phase 05 T12). Reads via getAdminDb() (BYPASSRLS —
- * audit_log is cross-tenant append-only; D-C). Gated by requireAdmin in server.ts.
+ * Audit log read routes (Phase 05 T12). Reads via getAdminDb() with admin
+ * session context. audit_log is cross-tenant append-only (D-C).
+ * Gated by requireAdmin in server.ts.
  *
- * GET /            → paginated page + page_chain_valid (per-page check only, D-R NIT)
- * GET /verify-chain → authoritative full-ledger verifyChain over hash-bearing rows
+ * GET /            -> paginated page + page_chain_valid (per-page check only, D-R NIT)
+ * GET /verify-chain -> authoritative full-ledger verifyChain over hash-bearing rows
  */
 export const auditRouter = new Hono();
 
@@ -53,7 +54,7 @@ auditRouter.get('/', async (c) => {
   const total = countRows[0]?.count ?? 0;
 
   // Per-page chain check (D-R NIT): verifyChain expects ascending order and only
-  // covers the visible page — hence `page_chain_valid`, NOT `chain_valid`.
+  // covers the visible page - hence `page_chain_valid`, NOT `chain_valid`.
   const ascending = [...rows].reverse().filter((r) => r.entryHash.length === 64);
   const pageCheck = verifyChain(ascending.map(toChainRow));
 

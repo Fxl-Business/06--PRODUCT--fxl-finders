@@ -310,7 +310,7 @@ export const clicks = pgTable(
 // conversions - tenant-scoped by org_id (split-RLS, D10). Phase 05 OWNS this.
 // INSERT happens on the HMAC webhook path with NO tenant context (split RLS:
 // conversions_insert_webhook WITH CHECK(true)); SELECT is org-scoped for finders;
-// admin reads bypass RLS via getAdminDb() (D-C). Money = integer cents.
+// admin reads use getAdminDb() with admin session context (D-C). Money = integer cents.
 // ─────────────────────────────────────────────────────────────────────────────
 export const conversions = pgTable(
   'conversions',
@@ -361,7 +361,7 @@ export const conversions = pgTable(
 // commissions - tenant-scoped by org_id (split-RLS, D10). Phase 05 OWNS this.
 // INSERT on webhook path (commissions_insert_webhook WITH CHECK(true)); SELECT
 // org-scoped for finders; admin state transitions (lock/reverse/promote) run on
-// getAdminDb() BYPASSRLS (D-C) - the app role has NO UPDATE policy/grant.
+// getAdminDb() with admin session context (D-C). Runtime has NO tenant UPDATE policy.
 // amount_brl = integer cents; rate_pct = numeric(5,2) (rates are not money).
 // ─────────────────────────────────────────────────────────────────────────────
 export const commissions = pgTable(
@@ -406,7 +406,7 @@ export const commissions = pgTable(
 // ─────────────────────────────────────────────────────────────────────────────
 // payouts - admin-managed cross-tenant (NO RLS, like apps/products). Phase 05
 // OWNS this single table (D-Q). commissions.paid_payout_id references it. Admin
-// reads/writes via getAdminDb() (BYPASSRLS, D-C); finder reads own via join.
+// reads/writes via getAdminDb() (D-C); finder reads own via join.
 // ─────────────────────────────────────────────────────────────────────────────
 export const payouts = pgTable('payouts', {
   id: uuid('id').primaryKey().defaultRandom(),

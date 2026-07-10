@@ -11,8 +11,8 @@ import {
 /**
  * Admin apps service (Phase 02, T04).
  *
- * `apps` is a global admin-managed table with NO RLS — this service runs on the
- * admin DB connection (getAdminDb, BYPASSRLS) and NEVER calls setTenantContext.
+ * `apps` is a global admin-managed table with NO RLS. This service runs on the
+ * admin DB connection and NEVER calls setTenantContext.
  */
 
 type Db = ReturnType<typeof getAdminDb>;
@@ -20,7 +20,7 @@ type AppRow = typeof apps.$inferSelect;
 
 /**
  * Client-safe projection of an app row. NEVER exposes `secretKeyHash` or
- * `webhookSigningSecret` — the webhook signing secret is a live HMAC credential
+ * `webhookSigningSecret` - the webhook signing secret is a live HMAC credential
  * and the hash is sensitive. Only `secretKeyPrefix` (the masked display form) is
  * sent. List/get responses use this; plaintext secrets are returned ONLY by
  * createApp / rotate* (the reveal-once paths).
@@ -39,7 +39,7 @@ function toPublicApp(row: AppRow): PublicAppRow {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Bare-hostname rule (WARN/LOCKED). NOT z.string().url() — that would accept
+ * Bare-hostname rule (WARN/LOCKED). NOT z.string().url() - that would accept
  * `https://host/path?x=1`, defeating the redirect-host security check. Phase 04
  * compares the redirect target host against this list by EXACT host equality.
  */
@@ -59,7 +59,7 @@ export const CreateAppSchema = z.object({
   commissionHoldDays: z.number().int().positive().default(30),
 });
 
-// slug is immutable — omitted entirely so it can never flow through an update (D-R NIT).
+// slug is immutable - omitted entirely so it can never flow through an update (D-R NIT).
 export const UpdateAppSchema = CreateAppSchema.omit({ slug: true }).partial();
 
 export const AppIdSchema = z.object({ id: z.string().uuid() });
@@ -70,7 +70,7 @@ export type CreateAppInput = z.infer<typeof CreateAppSchema>;
 export type UpdateAppInput = z.infer<typeof UpdateAppSchema>;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Audit helper (Phase 02 plain rows; Phase 05 wraps with hash-chain — D-R)
+// Audit helper (Phase 02 plain rows; Phase 05 wraps with hash-chain - D-R)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -103,7 +103,7 @@ async function writeAppAudit(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Service functions — all run on the admin (BYPASSRLS) connection, NO RLS / NO
+// Service functions - all run on the admin connection, NO RLS / NO
 // setTenantContext (admin-managed table)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -169,7 +169,7 @@ export async function updateApp(
   data: UpdateAppInput,
   actorUserId: string,
 ): Promise<PublicAppRow | undefined> {
-  // data comes from UpdateAppSchema which OMITS slug — slug can never be mutated.
+  // data comes from UpdateAppSchema which OMITS slug - slug can never be mutated.
   const [app] = await db
     .update(apps)
     .set({ ...data, updatedAt: new Date() })

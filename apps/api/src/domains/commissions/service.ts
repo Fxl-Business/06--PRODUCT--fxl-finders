@@ -10,9 +10,9 @@ import { writeAuditEntry } from '../audit/service.js';
  *
  * commissions is tenant-scoped (FORCE RLS, split-INSERT D10). Finder reads run on
  * getDb() inside a tx with setTenantContext (D-D). Admin reads + state transitions
- * (lock / reverse / nightly promote) run on getAdminDb() (BYPASSRLS, D-C) and write
- * an audit_log row in the SAME transaction for every money mutation. The app role
- * has NO UPDATE grant/policy on commissions — defence in depth (D-C).
+ * (lock / reverse / nightly promote) run on getAdminDb() with the admin session
+ * context (D-C) and write an audit_log row in the SAME transaction for every
+ * money mutation. The runtime path has NO tenant UPDATE policy on commissions.
  *
  * Lifecycle (D-K): auto path is pending → locked → paid → (reversed). The nightly
  * job promotes pending → locked WHERE hold_until < now() with NO manual action and
@@ -56,7 +56,7 @@ export const ReverseCommissionSchema = z.object({
 /**
  * Setup commission in int cents: floor(realizedSetupBrl * rate% / 100).
  * `setupRatePct` accepts number | string because Drizzle numeric(5,2) returns a
- * STRING in Node — Number() coercion is mandatory (plan-brief Wave 4 failure-list).
+ * STRING in Node - Number() coercion is mandatory (plan-brief Wave 4 failure-list).
  */
 export function calculateSetupCommission(
   realizedSetupBrl: number,
@@ -189,7 +189,7 @@ export async function getCommissionsByFinder(
 }
 
 /**
- * Admin cross-tenant read (D-C: getAdminDb() BYPASSRLS; NO setTenantContext).
+ * Admin cross-tenant read (D-C: getAdminDb(); NO setTenantContext).
  */
 export async function getCommissionsAdmin(
   adminDb: AdminDb,
