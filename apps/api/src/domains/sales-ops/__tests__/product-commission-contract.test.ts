@@ -62,6 +62,9 @@ describe('sales operations product commission contract', () => {
     expect(existsSync(migrationPath), `missing migration: ${migrationPath}`).toBe(true);
 
     const migration = readFileSync(migrationPath, 'utf8');
+    const adminContextIndex = migration.indexOf(
+      "SELECT set_config('app.fxl_admin', 'true', true)",
+    );
     const updateIndex = migration.indexOf('UPDATE "sales_ops_products"');
     const typeNotNullIndex = migration.indexOf(
       'ALTER COLUMN "seller_with_finder_commission_type" SET NOT NULL',
@@ -79,6 +82,9 @@ describe('sales operations product commission contract', () => {
     expect(migration).toMatch(
       /SET\s+"seller_with_finder_commission_type"\s*=\s*"seller_commission_type",\s*"seller_with_finder_commission_value"\s*=\s*"seller_commission_value"/s,
     );
+    expect(adminContextIndex).toBeGreaterThan(-1);
+    expect(adminContextIndex).toBeLessThan(updateIndex);
+    expect(migration).not.toMatch(/set_config\('app\.fxl_admin',\s*'true',\s*false\)/i);
     expect(updateIndex).toBeGreaterThan(-1);
     expect(typeNotNullIndex).toBeGreaterThan(updateIndex);
     expect(valueNotNullIndex).toBeGreaterThan(updateIndex);
