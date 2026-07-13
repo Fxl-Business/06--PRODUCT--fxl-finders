@@ -1406,7 +1406,20 @@ function CommissionsView({ bootstrap }: { bootstrap: SalesOpsBootstrap }) {
   );
 }
 
-function ProductsView({
+function formatProductCommission(type: 'pct' | 'fix', value: string): string {
+  const amount = Number(value);
+  if (type === 'pct') return `${Number.isFinite(amount) ? amount : 0}%`;
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+    .format(Number.isFinite(amount) ? amount : 0)
+    .replace(/\u00a0/g, ' ');
+}
+
+export function ProductsView({
   products,
   onEdit,
 }: {
@@ -1432,8 +1445,8 @@ function ProductsView({
             <TableHead className={`${tableHeadClass} text-center`}>Cód.</TableHead>
             <TableHead className={`${tableHeadClass} text-right`}>Setup</TableHead>
             <TableHead className={`${tableHeadClass} text-right`}>Mensalidade</TableHead>
-            <TableHead className={`${tableHeadClass} text-center`}>Com. vend.</TableHead>
-            <TableHead className={`${tableHeadClass} text-center`}>Com. finder</TableHead>
+            <TableHead className={`${tableHeadClass} text-center`}>Somente vendedor</TableHead>
+            <TableHead className={`${tableHeadClass} text-center`}>Vendedor + Finder</TableHead>
             <TableHead className={`${tableHeadClass} text-center`}>Recorrente</TableHead>
             <TableHead className={`${tableHeadClass} text-center`}>Ações</TableHead>
           </TableRow>
@@ -1459,13 +1472,14 @@ function ProductsView({
                   : '-'}
               </TableCell>
               <TableCell className="sales-ops-num px-4 py-3 text-center text-[13.5px] font-semibold">
-                {product.sellerCommissionValue}
-                {product.sellerCommissionType === 'pct' ? '%' : ''}
+                {formatProductCommission(product.sellerCommissionType, product.sellerCommissionValue)}
               </TableCell>
               <TableCell className="sales-ops-num px-4 py-3 text-center text-[13.5px] font-semibold">
-                {product.hasFinderCommission
-                  ? `${product.finderCommissionValue}${product.finderCommissionType === 'pct' ? '%' : ''}`
-                  : '-'}
+                {formatProductCommission(
+                  product.sellerWithFinderCommissionType,
+                  product.sellerWithFinderCommissionValue,
+                )}{' '}
+                + {formatProductCommission(product.finderCommissionType, product.finderCommissionValue)}
               </TableCell>
               <TableCell className="px-4 py-3 text-center">
                 <Badge
@@ -1759,9 +1773,10 @@ type ProductForm = {
   hasMonthly: boolean;
   monthlyBrl: string;
   recurringCommission: boolean;
-  hasFinderCommission: boolean;
   sellerCommissionType: 'pct' | 'fix';
   sellerCommissionValue: string;
+  sellerWithFinderCommissionType: 'pct' | 'fix';
+  sellerWithFinderCommissionValue: string;
   finderCommissionType: 'pct' | 'fix';
   finderCommissionValue: string;
   modules: Array<{ name: string; type: string; valueBrl: string }>;
@@ -1778,9 +1793,14 @@ function productForm(product?: SalesOpsProduct): ProductForm {
     hasMonthly: product?.hasMonthly ?? false,
     monthlyBrl: centsToInput(product?.monthlyBrl),
     recurringCommission: product?.recurringCommission ?? false,
-    hasFinderCommission: product?.hasFinderCommission ?? false,
     sellerCommissionType: product?.sellerCommissionType ?? 'pct',
     sellerCommissionValue: pctToInput(product?.sellerCommissionValue, 10),
+    sellerWithFinderCommissionType:
+      product?.sellerWithFinderCommissionType ?? product?.sellerCommissionType ?? 'pct',
+    sellerWithFinderCommissionValue: pctToInput(
+      product?.sellerWithFinderCommissionValue ?? product?.sellerCommissionValue,
+      product ? 10 : 7,
+    ),
     finderCommissionType: product?.finderCommissionType ?? 'pct',
     finderCommissionValue: pctToInput(product?.finderCommissionValue, 3),
     modules: product?.modules.map((module) => ({
@@ -1864,14 +1884,17 @@ function CommissionModeButton({
 function UnitToggle({
   value,
   active,
+  ariaLabel,
   onClick,
 }: {
   value: '%' | 'R$';
   active: boolean;
+  ariaLabel: string;
   onClick: () => void;
 }) {
   return (
     <button
+      aria-label={ariaLabel}
       className={`w-[42px] rounded-md px-0 py-2 text-[13px] font-bold transition ${
         active ? 'bg-[#201f24] text-white' : 'bg-transparent text-[#84848c] hover:text-[#201f24]'
       }`}
@@ -1887,16 +1910,19 @@ function UnitInput({
   value,
   onChange,
   unit,
+  ariaLabel,
   disabled,
 }: {
   value: string;
   onChange: (value: string) => void;
   unit: '%' | 'R$';
+  ariaLabel: string;
   disabled?: boolean;
 }) {
   return (
     <div className="relative flex-1">
       <Input
+        aria-label={ariaLabel}
         className={`sales-ops-num ${formInputClass} pr-11`}
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
@@ -1918,7 +1944,7 @@ function DefinedOnSaleNotice() {
   );
 }
 
-function ProductDialog(props: {
+export function ProductDialog(props: {
   modal: Extract<ModalState, { kind: 'product' }> | null;
   collaborators: SalesOpsPerson[];
   onClose: () => void;
@@ -1952,6 +1978,7 @@ function ProductDialogBody({
   saving: boolean;
 }) {
   const [form, setForm] = useState<ProductForm>(() => productForm(modal?.product));
+  const [commissionMode, setCommissionMode] = useState<'seller_only' | 'with_finder'>('seller_only');
   const activeModal = modal;
 
   function set<K extends keyof ProductForm>(key: K, value: ProductForm[K]) {
@@ -1970,11 +1997,12 @@ function ProductDialogBody({
       hasMonthly: form.hasMonthly,
       monthlyBrl: form.openPrice || !form.hasMonthly ? 0 : parseCurrencyToCents(form.monthlyBrl),
       recurringCommission: form.hasMonthly && form.recurringCommission,
-      hasFinderCommission: form.hasFinderCommission,
       sellerCommissionType: form.sellerCommissionType,
       sellerCommissionValue: parseDecimal(form.sellerCommissionValue, 10),
+      sellerWithFinderCommissionType: form.sellerWithFinderCommissionType,
+      sellerWithFinderCommissionValue: parseDecimal(form.sellerWithFinderCommissionValue, 7),
       finderCommissionType: form.finderCommissionType,
-      finderCommissionValue: form.hasFinderCommission ? parseDecimal(form.finderCommissionValue, 3) : 0,
+      finderCommissionValue: parseDecimal(form.finderCommissionValue, 3),
       modules: form.modules
         .filter((module) => module.name.trim())
         .map((module) => ({
@@ -2157,14 +2185,14 @@ function ProductDialogBody({
               </div>
               <div className="mb-[14px] flex gap-[5px] rounded-[11px] bg-[#f2f2f4] p-1">
                 <CommissionModeButton
-                  active={!form.hasFinderCommission}
-                  onClick={() => set('hasFinderCommission', false)}
+                  active={commissionMode === 'seller_only'}
+                  onClick={() => setCommissionMode('seller_only')}
                 >
                   Somente vendedor
                 </CommissionModeButton>
                 <CommissionModeButton
-                  active={form.hasFinderCommission}
-                  onClick={() => set('hasFinderCommission', true)}
+                  active={commissionMode === 'with_finder'}
+                  onClick={() => setCommissionMode('with_finder')}
                 >
                   Vendedor + Finder
                 </CommissionModeButton>
@@ -2175,41 +2203,77 @@ function ProductDialogBody({
                 <div className="flex gap-[9px]">
                   <div className="flex flex-none gap-[3px] rounded-[9px] bg-[#f2f2f4] p-[3px]">
                     <UnitToggle
-                      active={form.sellerCommissionType === 'pct'}
-                      onClick={() => set('sellerCommissionType', 'pct')}
+                      active={
+                        commissionMode === 'seller_only'
+                          ? form.sellerCommissionType === 'pct'
+                          : form.sellerWithFinderCommissionType === 'pct'
+                      }
+                      ariaLabel={`Comissão do vendedor - ${commissionMode === 'seller_only' ? 'somente vendedor' : 'com finder'} em porcentagem`}
+                      onClick={() =>
+                        commissionMode === 'seller_only'
+                          ? set('sellerCommissionType', 'pct')
+                          : set('sellerWithFinderCommissionType', 'pct')
+                      }
                       value="%"
                     />
                     <UnitToggle
-                      active={form.sellerCommissionType === 'fix'}
-                      onClick={() => set('sellerCommissionType', 'fix')}
+                      active={
+                        commissionMode === 'seller_only'
+                          ? form.sellerCommissionType === 'fix'
+                          : form.sellerWithFinderCommissionType === 'fix'
+                      }
+                      ariaLabel={`Comissão do vendedor - ${commissionMode === 'seller_only' ? 'somente vendedor' : 'com finder'} em reais`}
+                      onClick={() =>
+                        commissionMode === 'seller_only'
+                          ? set('sellerCommissionType', 'fix')
+                          : set('sellerWithFinderCommissionType', 'fix')
+                      }
                       value="R$"
                     />
                   </div>
                   <UnitInput
-                    onChange={(value) => set('sellerCommissionValue', value)}
-                    unit={form.sellerCommissionType === 'fix' ? 'R$' : '%'}
-                    value={form.sellerCommissionValue}
+                    ariaLabel={`Comissão do vendedor - ${commissionMode === 'seller_only' ? 'somente vendedor' : 'com finder'}`}
+                    onChange={(value) =>
+                      commissionMode === 'seller_only'
+                        ? set('sellerCommissionValue', value)
+                        : set('sellerWithFinderCommissionValue', value)
+                    }
+                    unit={
+                      (commissionMode === 'seller_only'
+                        ? form.sellerCommissionType
+                        : form.sellerWithFinderCommissionType) === 'fix'
+                        ? 'R$'
+                        : '%'
+                    }
+                    value={
+                      commissionMode === 'seller_only'
+                        ? form.sellerCommissionValue
+                        : form.sellerWithFinderCommissionValue
+                    }
                   />
                 </div>
               </div>
 
-              {form.hasFinderCommission ? (
+              {commissionMode === 'with_finder' ? (
                 <div>
                   <div className="mb-1.5 text-xs font-semibold text-[#8b8b92]">Comissão do finder</div>
                   <div className="flex gap-[9px]">
                     <div className="flex flex-none gap-[3px] rounded-[9px] bg-[#f2f2f4] p-[3px]">
                       <UnitToggle
                         active={form.finderCommissionType === 'pct'}
+                        ariaLabel="Comissão do finder em porcentagem"
                         onClick={() => set('finderCommissionType', 'pct')}
                         value="%"
                       />
                       <UnitToggle
                         active={form.finderCommissionType === 'fix'}
+                        ariaLabel="Comissão do finder em reais"
                         onClick={() => set('finderCommissionType', 'fix')}
                         value="R$"
                       />
                     </div>
                     <UnitInput
+                      ariaLabel="Comissão do finder"
                       onChange={(value) => set('finderCommissionValue', value)}
                       unit={form.finderCommissionType === 'fix' ? 'R$' : '%'}
                       value={form.finderCommissionValue}
@@ -2332,6 +2396,7 @@ function ProductDialogBody({
                     <div className="flex flex-none gap-[3px] rounded-[9px] bg-[#f2f2f4] p-[3px]">
                       <UnitToggle
                         active={provider.commissionType === 'pct'}
+                        ariaLabel={`Comissão de ${provider.personName || 'prestador'} em porcentagem`}
                         onClick={() => {
                           const next = [...form.providers];
                           next[index] = { ...provider, commissionType: 'pct' };
@@ -2341,6 +2406,7 @@ function ProductDialogBody({
                       />
                       <UnitToggle
                         active={provider.commissionType === 'fix'}
+                        ariaLabel={`Comissão de ${provider.personName || 'prestador'} em reais`}
                         onClick={() => {
                           const next = [...form.providers];
                           next[index] = { ...provider, commissionType: 'fix' };
@@ -2350,6 +2416,7 @@ function ProductDialogBody({
                       />
                     </div>
                     <UnitInput
+                      ariaLabel={`Comissão de ${provider.personName || 'prestador'}`}
                       onChange={(value) => {
                         const next = [...form.providers];
                         next[index] = { ...provider, commissionValue: value };

@@ -22,11 +22,13 @@ export type SaveProductPayload = Omit<
   | 'createdAt'
   | 'updatedAt'
   | 'sellerCommissionValue'
+  | 'sellerWithFinderCommissionValue'
   | 'finderCommissionValue'
 > & {
   id?: string;
   name: string;
   sellerCommissionValue?: number;
+  sellerWithFinderCommissionValue?: number;
   finderCommissionValue?: number;
 };
 

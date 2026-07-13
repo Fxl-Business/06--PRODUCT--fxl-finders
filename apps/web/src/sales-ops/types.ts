@@ -42,6 +42,8 @@ export type SalesOpsProduct = {
   hasFinderCommission: boolean;
   sellerCommissionType: CommissionType;
   sellerCommissionValue: string;
+  sellerWithFinderCommissionType: CommissionType;
+  sellerWithFinderCommissionValue: string;
   finderCommissionType: CommissionType;
   finderCommissionValue: string;
   modules: SalesOpsProductModule[];
@@ -227,4 +229,3 @@ export type CreateSalePayload = {
     costBrl: number;
   }>;
 };
-
