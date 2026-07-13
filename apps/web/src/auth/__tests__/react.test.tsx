@@ -60,16 +60,19 @@ function jwt(claims: Record<string, unknown>): string {
   return `header.${payload}.signature`;
 }
 
-function profileToken(workspaceName: string): string {
+function profileToken(
+  workspaceName: string,
+  workspaces: Array<{ id: string; name: string }> = [
+    { id: 'workspace-alpha', name: 'Alpha' },
+    { id: 'workspace-beta', name: 'Beta' },
+  ],
+): string {
   return jwt({
     name: 'Ada Lovelace',
     email: 'ada@example.com',
     workspaceName,
     roles: { workspace: 'admin' },
-    workspaces: [
-      { id: 'workspace-alpha', name: 'Alpha' },
-      { id: 'workspace-beta', name: 'Beta' },
-    ],
+    workspaces,
   });
 }
 
@@ -216,5 +219,111 @@ describe('AppAuthProvider token cache wiring', () => {
     logout.resolve();
     await flushReact();
     expect(container.querySelector('[data-testid="profile"]')?.textContent).toBe('signed-out:');
+  });
+
+  it('does not restore authentication when a workspace switch resolves after logout begins', async () => {
+    const switchRequest = deferred<Awaited<ReturnType<HubClient['setActive']>>>();
+    const logout = deferred<void>();
+    const observeWorkspace = vi.fn<(workspaceName?: string) => void>();
+    const switchedToken = profileToken('Beta');
+    mocks.cache.getToken.mockResolvedValue(profileToken('Alpha'));
+    mocks.client.setActive.mockReturnValue(switchRequest.promise);
+    mocks.client.logout.mockReturnValue(logout.promise);
+    ({ container, root } = renderProvider(observeWorkspace));
+    await flushReact();
+
+    const select = container.querySelector('select');
+    const button = container.querySelector<HTMLButtonElement>('button[aria-label="Sair"]');
+    expect(select).not.toBeNull();
+    expect(button).not.toBeNull();
+    await act(async () => {
+      if (!select) return;
+      select.value = 'workspace-beta';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(mocks.client.setActive).toHaveBeenCalledWith('workspace-beta');
+
+    await act(async () => {
+      button?.click();
+      await Promise.resolve();
+    });
+    expect(mocks.cache.clear).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="profile"]')?.textContent).toBe('signed-out:');
+
+    switchRequest.resolve({
+      accessToken: switchedToken,
+      expiresIn: 120,
+      workspaceId: 'workspace-beta',
+    });
+    await flushReact();
+    expect(mocks.cache.seed).not.toHaveBeenCalled();
+    expect(observeWorkspace.mock.calls.some(([name]) => name === 'Beta')).toBe(false);
+    expect(container.querySelector('[data-testid="profile"]')?.textContent).toBe('signed-out:');
+
+    logout.resolve();
+    await flushReact();
+    expect(container.querySelector('[data-testid="profile"]')?.textContent).toBe('signed-out:');
+  });
+
+  it('keeps the newest requested workspace authoritative when switches resolve out of order', async () => {
+    const workspaces = [
+      { id: 'workspace-alpha', name: 'Alpha' },
+      { id: 'workspace-beta', name: 'Beta' },
+      { id: 'workspace-gamma', name: 'Gamma' },
+    ];
+    const betaSwitch = deferred<Awaited<ReturnType<HubClient['setActive']>>>();
+    const gammaSwitch = deferred<Awaited<ReturnType<HubClient['setActive']>>>();
+    const observeWorkspace = vi.fn<(workspaceName?: string) => void>();
+    const betaToken = profileToken('Beta', workspaces);
+    const gammaToken = profileToken('Gamma', workspaces);
+    mocks.cache.getToken.mockResolvedValue(profileToken('Alpha', workspaces));
+    mocks.client.setActive.mockImplementation((workspaceId) => {
+      if (workspaceId === 'workspace-beta') return betaSwitch.promise;
+      if (workspaceId === 'workspace-gamma') return gammaSwitch.promise;
+      throw new Error(`Unexpected workspace: ${workspaceId}`);
+    });
+    ({ container, root } = renderProvider(observeWorkspace));
+    await flushReact();
+
+    const select = container.querySelector('select');
+    expect(select).not.toBeNull();
+    await act(async () => {
+      if (!select) return;
+      select.value = 'workspace-beta';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      await Promise.resolve();
+      select.value = 'workspace-gamma';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      await Promise.resolve();
+    });
+    expect(mocks.client.setActive).toHaveBeenNthCalledWith(1, 'workspace-beta');
+    expect(mocks.client.setActive).toHaveBeenNthCalledWith(2, 'workspace-gamma');
+
+    gammaSwitch.resolve({
+      accessToken: gammaToken,
+      expiresIn: 120,
+      workspaceId: 'workspace-gamma',
+    });
+    await flushReact();
+    expect(mocks.cache.seed).toHaveBeenCalledTimes(1);
+    expect(mocks.cache.seed).toHaveBeenCalledWith(gammaToken, 120);
+    const gammaCall = observeWorkspace.mock.calls.findIndex(([name]) => name === 'Gamma');
+    expect(gammaCall).toBeGreaterThanOrEqual(0);
+    expect(mocks.cache.seed.mock.invocationCallOrder[0]).toBeLessThan(
+      observeWorkspace.mock.invocationCallOrder[gammaCall]!,
+    );
+
+    betaSwitch.resolve({
+      accessToken: betaToken,
+      expiresIn: 120,
+      workspaceId: 'workspace-beta',
+    });
+    await flushReact();
+    expect(mocks.cache.seed).toHaveBeenCalledTimes(1);
+    expect(observeWorkspace.mock.calls.some(([name]) => name === 'Beta')).toBe(false);
+    expect(container.querySelector('[data-testid="profile"]')?.textContent).toBe(
+      'signed-in:Gamma',
+    );
   });
 });

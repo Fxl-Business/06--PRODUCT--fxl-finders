@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -105,6 +106,7 @@ function HubAuthProvider({ children }: { children: ReactNode }) {
     [],
   );
   const tokenCache = useMemo(() => createHubAccessTokenCache(client), [client]);
+  const operationGeneration = useRef(0);
   const [profile, setProfile] = useState<AuthProfile>({
     isLoaded: false,
     isSignedIn: false,
@@ -136,6 +138,7 @@ function HubAuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(() => client.login(), [client]);
 
   const logout = useCallback(async () => {
+    operationGeneration.current += 1;
     tokenCache.clear();
     applyToken(null);
     await client.logout();
@@ -143,7 +146,10 @@ function HubAuthProvider({ children }: { children: ReactNode }) {
 
   const setActive = useCallback(
     async (workspaceId: string) => {
+      operationGeneration.current += 1;
+      const switchGeneration = operationGeneration.current;
       const result = await client.setActive(workspaceId);
+      if (switchGeneration !== operationGeneration.current) return;
       tokenCache.seed(result.accessToken, result.expiresIn);
       applyToken(result.accessToken);
     },
