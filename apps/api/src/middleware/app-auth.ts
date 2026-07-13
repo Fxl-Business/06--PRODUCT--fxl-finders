@@ -2,6 +2,12 @@ import type { HubSdkConfig } from '@fxl-business/hub-sdk';
 import { createHubBff, requireHubAuth } from '@fxl-business/hub-sdk/server';
 import type { MiddlewareHandler } from 'hono';
 import { tryLoadHubAuthConfig } from '../config/auth-provider.js';
+import { env } from '../env.js';
+import { createDrizzleHubSessionPersistence } from '../lib/hub-session-persistence.js';
+import {
+  DurableHubSessionStore,
+  type HubSessionPersistence,
+} from '../lib/hub-session-store.js';
 
 type EnvLike = Record<string, string | undefined>;
 
@@ -154,12 +160,25 @@ export const appAuthMiddleware: MiddlewareHandler = async (c, next) => {
   return blockedResponse ?? authResponse;
 };
 
-export function createAppAuthBff() {
+export type CreateAppAuthBffOptions = {
+  persistence?: HubSessionPersistence;
+  fetchImpl?: typeof fetch;
+};
+
+export async function createAppAuthBff(options: CreateAppAuthBffOptions = {}) {
   if (!hubSdkConfig) {
     return null;
   }
 
+  const persistence =
+    options.persistence ??
+    createDrizzleHubSessionPersistence(env.FXL_HUB_SESSION_ENCRYPTION_KEY);
+  const sessionStore = new DurableHubSessionStore(persistence);
+  await sessionStore.hydrate();
+
   return createHubBff(hubSdkConfig, {
+    sessionStore,
+    fetchImpl: options.fetchImpl,
     redirectUri: resolveHubRedirectUri(process.env),
     postLoginRedirect: resolveHubPostLoginRedirect(process.env),
     postLoginErrorRedirect: resolveHubPostLoginErrorRedirect(process.env),

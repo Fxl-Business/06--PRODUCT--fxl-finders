@@ -28,7 +28,7 @@ app.use('*', errorMiddleware);
 
 app.route('/health', healthRouter);
 
-const authBff = createAppAuthBff();
+const authBff = await createAppAuthBff();
 if (authBff) {
   app.route('', authBff);
 }
