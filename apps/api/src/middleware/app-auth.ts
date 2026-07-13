@@ -1,6 +1,7 @@
 import type { HubSdkConfig } from '@fxl-business/hub-sdk';
 import { createHubBff, requireHubAuth } from '@fxl-business/hub-sdk/server';
-import type { MiddlewareHandler } from 'hono';
+import { Hono, type MiddlewareHandler } from 'hono';
+import { deleteCookie } from 'hono/cookie';
 import { tryLoadHubAuthConfig } from '../config/auth-provider.js';
 import { env } from '../env.js';
 import { createDrizzleHubSessionPersistence } from '../lib/hub-session-persistence.js';
@@ -176,11 +177,36 @@ export async function createAppAuthBff(options: CreateAppAuthBffOptions = {}) {
   const sessionStore = new DurableHubSessionStore(persistence);
   await sessionStore.hydrate();
 
-  return createHubBff(hubSdkConfig, {
+  const sdkBff = createHubBff(hubSdkConfig, {
     sessionStore,
     fetchImpl: options.fetchImpl,
     redirectUri: resolveHubRedirectUri(process.env),
     postLoginRedirect: resolveHubPostLoginRedirect(process.env),
     postLoginErrorRedirect: resolveHubPostLoginErrorRedirect(process.env),
   });
+  const app = new Hono();
+  app.use('/auth/*', async (c, next) => {
+    await next();
+    try {
+      await sessionStore.whenIdle();
+    } catch {
+      console.warn('Hub session persistence failed');
+      const secure = process.env.NODE_ENV === 'production';
+      c.res = Response.json(
+        { error: 'unavailable', code: 'session_persistence_failed' },
+        { status: 503 },
+      );
+      c.header('location', undefined);
+      c.header('set-cookie', undefined);
+      deleteCookie(c, secure ? '__Host-fxl_hub_session' : 'fxl_hub_session', {
+        httpOnly: true,
+        sameSite: 'Lax',
+        path: '/',
+        secure,
+      });
+      return c.res;
+    }
+  });
+  app.route('', sdkBff);
+  return app;
 }

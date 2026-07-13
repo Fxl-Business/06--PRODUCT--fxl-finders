@@ -1,6 +1,6 @@
 import type { HubSessionRecord } from '@fxl-business/hub-sdk';
 import { __clearDiscoveryCache } from '@fxl-business/hub-sdk';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   HubSessionPersistence,
   PersistedHubSession,
@@ -20,29 +20,83 @@ vi.mock('../../config/auth-provider.js', () => ({
 
 const { createAppAuthBff } = await import('../app-auth.js');
 
+type Deferred<T> = {
+  promise: Promise<T>;
+  resolve(value: T): void;
+  reject(error: unknown): void;
+};
+
+function deferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+type PersistenceWrite =
+  | { operation: 'put'; sessionId: string; record: HubSessionRecord }
+  | { operation: 'remove'; sessionId: string };
+
 class FakePersistence implements HubSessionPersistence {
   readonly records = new Map<string, HubSessionRecord>();
-  readonly puts: Array<{ sessionId: string; record: HubSessionRecord }> = [];
-  readonly removals: string[] = [];
+  readonly writes: PersistenceWrite[] = [];
+  private nextControl:
+    | { started: Deferred<PersistenceWrite>; settlement: Deferred<void> }
+    | undefined;
 
   async loadAll(): Promise<PersistedHubSession[]> {
     return [...this.records].map(([id, record]) => ({ id, ...record }));
   }
 
   async put(sessionId: string, record: HubSessionRecord): Promise<void> {
-    this.puts.push({ sessionId, record: { ...record } });
+    const write: PersistenceWrite = { operation: 'put', sessionId, record: { ...record } };
+    this.writes.push(write);
+    await this.awaitControl(write);
     this.records.set(sessionId, { ...record });
   }
 
   async remove(sessionId: string): Promise<void> {
-    this.removals.push(sessionId);
+    const write: PersistenceWrite = { operation: 'remove', sessionId };
+    this.writes.push(write);
+    await this.awaitControl(write);
     this.records.delete(sessionId);
+  }
+
+  controlNextWrite() {
+    if (this.nextControl) {
+      throw new Error('A persistence write is already controlled');
+    }
+    const started = deferred<PersistenceWrite>();
+    const settlement = deferred<void>();
+    this.nextControl = { started, settlement };
+    return {
+      started: started.promise,
+      release: () => settlement.resolve(undefined),
+      reject: (error: unknown) => settlement.reject(error),
+    };
+  }
+
+  private async awaitControl(write: PersistenceWrite): Promise<void> {
+    const control = this.nextControl;
+    if (!control) {
+      return;
+    }
+    this.nextControl = undefined;
+    control.started.resolve(write);
+    await control.settlement.promise;
   }
 }
 
 type HubReply = { status?: number; rotatedRefreshToken?: string };
 
-function createFakeHubFetch(replies: HubReply[] = []) {
+function createFakeHubFetch(options?: {
+  refreshReplies?: HubReply[];
+  callbackRefreshToken?: string;
+}) {
+  const refreshReplies = [...(options?.refreshReplies ?? [])];
   const refreshTokensSent: string[] = [];
   const fetchImpl: typeof fetch = vi.fn(async (input, init) => {
     const url = String(input);
@@ -55,10 +109,17 @@ function createFakeHubFetch(replies: HubReply[] = []) {
       });
     }
 
+    if (url === 'https://hub.test/oauth/token') {
+      return Response.json({
+        access_token: 'at-callback',
+        refresh_token: options?.callbackRefreshToken ?? 'rt-callback',
+      });
+    }
+
     if (url.startsWith('https://hub.test/auth/refresh')) {
       const headers = new Headers(init?.headers);
       refreshTokensSent.push(headers.get('cookie') ?? '');
-      const reply = replies.shift() ?? {};
+      const reply = refreshReplies.shift() ?? {};
       if (reply.status === 401) {
         return Response.json({ error: 'unauthorized' }, { status: 401 });
       }
@@ -82,15 +143,71 @@ function createFakeHubFetch(replies: HubReply[] = []) {
   return { fetchImpl, refreshTokensSent };
 }
 
-async function refresh(router: NonNullable<Awaited<ReturnType<typeof createAppAuthBff>>>) {
+type AppAuthRouter = NonNullable<Awaited<ReturnType<typeof createAppAuthBff>>>;
+
+function refresh(router: AppAuthRouter, sessionId = 'session-1') {
   return router.request('/auth/refresh', {
     method: 'POST',
-    headers: { cookie: 'fxl_hub_session=session-1' },
+    headers: { cookie: `fxl_hub_session=${sessionId}` },
   });
+}
+
+function logout(router: AppAuthRouter, sessionId = 'session-1') {
+  return router.request('/auth/logout', {
+    method: 'POST',
+    headers: { cookie: `fxl_hub_session=${sessionId}` },
+  });
+}
+
+async function callbackRequest(router: AppAuthRouter): Promise<{
+  callbackUrl: string;
+  loginCookie: string;
+}> {
+  const loginResponse = await router.request('/auth/login');
+  const location = loginResponse.headers.get('location');
+  const setCookie = loginResponse.headers.get('set-cookie');
+  expect(loginResponse.status).toBe(302);
+  expect(location).toBeTruthy();
+  expect(setCookie).toBeTruthy();
+  const authorizationUrl = new URL(location!);
+  const state = authorizationUrl.searchParams.get('state');
+  const transactionId = /fxl_hub_login=([^;]+)/.exec(setCookie!)?.[1];
+  expect(state).toBeTruthy();
+  expect(transactionId).toBeTruthy();
+  return {
+    callbackUrl: `/auth/callback?code=callback-code&state=${encodeURIComponent(state!)}`,
+    loginCookie: `fxl_hub_login=${transactionId}`,
+  };
+}
+
+function trackResponse(responseOrPromise: Response | Promise<Response>) {
+  let settled = false;
+  return {
+    promise: Promise.resolve(responseOrPromise).then((response) => {
+      settled = true;
+      return response;
+    }),
+    isSettled: () => settled,
+  };
+}
+
+async function eventLoopTurn(): Promise<void> {
+  await new Promise<void>((resolve) => setImmediate(resolve));
+}
+
+function expectSessionCookieCleared(response: Response): void {
+  const setCookie = response.headers.get('set-cookie') ?? '';
+  expect(setCookie).toMatch(/(?:__Host-)?fxl_hub_session=;/);
+  expect(setCookie).toMatch(/Max-Age=0/i);
+  expect(setCookie).not.toMatch(/(?:__Host-)?fxl_hub_session=[A-Za-z0-9_-]+/);
 }
 
 beforeEach(() => {
   __clearDiscoveryCache();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('createAppAuthBff durable session wiring', () => {
@@ -106,68 +223,226 @@ describe('createAppAuthBff durable session wiring', () => {
     expect(hub.refreshTokensSent).toEqual(['fxl_hub_session=rt-old']);
   });
 
-  it('persists a rotated refresh token and restores it in a fresh BFF process', async () => {
+  it('holds a rotated refresh response until update persistence is durable', async () => {
     const persistence = new FakePersistence();
     persistence.records.set('session-1', { hubRefreshToken: 'rt-old', accountId: 'account-1' });
-    const firstHub = createFakeHubFetch([{ rotatedRefreshToken: 'rt-rotated' }]);
-    const firstRouter = await createAppAuthBff({
-      persistence,
-      fetchImpl: firstHub.fetchImpl,
+    const hub = createFakeHubFetch({
+      refreshReplies: [{ rotatedRefreshToken: 'rt-rotated' }],
     });
+    const router = await createAppAuthBff({ persistence, fetchImpl: hub.fetchImpl });
+    const control = persistence.controlNextWrite();
 
-    expect((await refresh(firstRouter!)).status).toBe(200);
-    await vi.waitFor(() => {
-      expect(persistence.records.get('session-1')?.hubRefreshToken).toBe('rt-rotated');
+    const tracked = trackResponse(refresh(router!));
+    await expect(control.started).resolves.toMatchObject({
+      operation: 'put',
+      record: { hubRefreshToken: 'rt-rotated' },
     });
+    await eventLoopTurn();
+    const stayedPending = !tracked.isSettled();
+    control.release();
+    const response = await tracked.promise;
+
+    expect(stayedPending).toBe(true);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ accessToken: 'at-test' });
 
     __clearDiscoveryCache();
-    const secondHub = createFakeHubFetch();
-    const secondRouter = await createAppAuthBff({
+    const freshHub = createFakeHubFetch();
+    const freshRouter = await createAppAuthBff({
       persistence,
-      fetchImpl: secondHub.fetchImpl,
+      fetchImpl: freshHub.fetchImpl,
     });
-    expect((await refresh(secondRouter!)).status).toBe(200);
-    expect(secondHub.refreshTokensSent).toEqual(['fxl_hub_session=rt-rotated']);
+    expect((await refresh(freshRouter!)).status).toBe(200);
+    expect(freshHub.refreshTokensSent).toEqual(['fxl_hub_session=rt-rotated']);
   });
 
-  it('removes logout state so a fresh BFF rejects the old cookie', async () => {
+  it('holds callback success until create persistence is durable', async () => {
     const persistence = new FakePersistence();
-    persistence.records.set('session-1', { hubRefreshToken: 'rt-old' });
-    const firstHub = createFakeHubFetch();
-    const firstRouter = await createAppAuthBff({
+    const hub = createFakeHubFetch({ callbackRefreshToken: 'rt-callback' });
+    const router = await createAppAuthBff({ persistence, fetchImpl: hub.fetchImpl });
+    const callback = await callbackRequest(router!);
+    const control = persistence.controlNextWrite();
+
+    const tracked = trackResponse(
+      router!.request(callback.callbackUrl, {
+        headers: { cookie: callback.loginCookie },
+      }),
+    );
+    const write = await control.started;
+    expect(write).toMatchObject({
+      operation: 'put',
+      record: { hubRefreshToken: 'rt-callback' },
+    });
+    await eventLoopTurn();
+    const stayedPending = !tracked.isSettled();
+    control.release();
+    const response = await tracked.promise;
+
+    expect(stayedPending).toBe(true);
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/');
+    const sessionId = /fxl_hub_session=([^;]+)/.exec(
+      response.headers.get('set-cookie') ?? '',
+    )?.[1];
+    expect(sessionId).toBe(write.sessionId);
+
+    __clearDiscoveryCache();
+    const freshHub = createFakeHubFetch();
+    const freshRouter = await createAppAuthBff({
       persistence,
-      fetchImpl: firstHub.fetchImpl,
+      fetchImpl: freshHub.fetchImpl,
     });
-
-    const logoutResponse = await firstRouter!.request('/auth/logout', {
-      method: 'POST',
-      headers: { cookie: 'fxl_hub_session=session-1' },
-    });
-    expect(logoutResponse.status).toBe(204);
-    await vi.waitFor(() => expect(persistence.records.has('session-1')).toBe(false));
-
-    const secondRouter = await createAppAuthBff({ persistence, fetchImpl: firstHub.fetchImpl });
-    const response = await refresh(secondRouter!);
-    expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: 'no_session' });
+    expect((await refresh(freshRouter!, sessionId)).status).toBe(200);
+    expect(freshHub.refreshTokensSent).toEqual(['fxl_hub_session=rt-callback']);
   });
 
-  it('removes a Hub-rejected session so a fresh BFF rejects the old cookie', async () => {
+  it('holds logout acknowledgement until delete persistence is durable', async () => {
     const persistence = new FakePersistence();
     persistence.records.set('session-1', { hubRefreshToken: 'rt-old' });
-    const firstHub = createFakeHubFetch([{ status: 401 }]);
-    const firstRouter = await createAppAuthBff({
-      persistence,
-      fetchImpl: firstHub.fetchImpl,
+    const hub = createFakeHubFetch();
+    const router = await createAppAuthBff({ persistence, fetchImpl: hub.fetchImpl });
+    const control = persistence.controlNextWrite();
+
+    const tracked = trackResponse(logout(router!));
+    await expect(control.started).resolves.toEqual({
+      operation: 'remove',
+      sessionId: 'session-1',
     });
+    await eventLoopTurn();
+    const stayedPending = !tracked.isSettled();
+    control.release();
+    const response = await tracked.promise;
 
-    expect((await refresh(firstRouter!)).status).toBe(401);
-    await vi.waitFor(() => expect(persistence.records.has('session-1')).toBe(false));
+    expect(stayedPending).toBe(true);
+    expect(response.status).toBe(204);
 
-    const secondRouter = await createAppAuthBff({ persistence, fetchImpl: firstHub.fetchImpl });
-    const response = await refresh(secondRouter!);
+    const freshRouter = await createAppAuthBff({ persistence, fetchImpl: hub.fetchImpl });
+    const freshResponse = await refresh(freshRouter!);
+    expect(freshResponse.status).toBe(401);
+    await expect(freshResponse.json()).resolves.toEqual({ error: 'no_session' });
+  });
+
+  it('holds a Hub 401 response until delete persistence is durable', async () => {
+    const persistence = new FakePersistence();
+    persistence.records.set('session-1', { hubRefreshToken: 'rt-old' });
+    const hub = createFakeHubFetch({ refreshReplies: [{ status: 401 }] });
+    const router = await createAppAuthBff({ persistence, fetchImpl: hub.fetchImpl });
+    const control = persistence.controlNextWrite();
+
+    const tracked = trackResponse(refresh(router!));
+    await expect(control.started).resolves.toEqual({
+      operation: 'remove',
+      sessionId: 'session-1',
+    });
+    await eventLoopTurn();
+    const stayedPending = !tracked.isSettled();
+    control.release();
+    const response = await tracked.promise;
+
+    expect(stayedPending).toBe(true);
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: 'no_session' });
+
+    __clearDiscoveryCache();
+    const freshRouter = await createAppAuthBff({ persistence, fetchImpl: hub.fetchImpl });
+    const freshResponse = await refresh(freshRouter!);
+    expect(freshResponse.status).toBe(401);
+    await expect(freshResponse.json()).resolves.toEqual({ error: 'no_session' });
+  });
+
+  it.each(['callback', 'refresh', 'logout', 'refresh-401'] as const)(
+    'fails %s closed when its persistence operation rejects',
+    async (scenario) => {
+      const persistence = new FakePersistence();
+      if (scenario !== 'callback') {
+        persistence.records.set('session-1', {
+          hubRefreshToken: 'rt-old',
+          accountId: 'account-secret',
+        });
+      }
+      const hub = createFakeHubFetch({
+        callbackRefreshToken: 'rt-callback',
+        refreshReplies:
+          scenario === 'refresh'
+            ? [{ rotatedRefreshToken: 'rt-rotated' }]
+            : scenario === 'refresh-401'
+              ? [{ status: 401 }]
+              : [],
+      });
+      const router = await createAppAuthBff({ persistence, fetchImpl: hub.fetchImpl });
+      const callback = scenario === 'callback' ? await callbackRequest(router!) : undefined;
+      const control = persistence.controlNextWrite();
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      const request =
+        scenario === 'callback'
+          ? router!.request(callback!.callbackUrl, {
+              headers: { cookie: callback!.loginCookie },
+            })
+          : scenario === 'logout'
+            ? logout(router!)
+            : refresh(router!);
+      const write = await control.started;
+      control.reject(
+        new Error(
+          'database exploded with session-1 rt-old rt-rotated ciphertext-secret key-secret account-secret',
+        ),
+      );
+      const response = await request;
+
+      expect(response.status).toBe(503);
+      await expect(response.clone().json()).resolves.toEqual({
+        error: 'unavailable',
+        code: 'session_persistence_failed',
+      });
+      expect(response.headers.get('location')).toBeNull();
+      expectSessionCookieCleared(response);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith('Hub session persistence failed');
+      const exposed = [
+        JSON.stringify(warn.mock.calls),
+        await response.clone().text(),
+        response.headers.get('set-cookie') ?? '',
+      ].join(' ');
+      for (const secret of [
+        write.sessionId,
+        'session-1',
+        'rt-old',
+        'rt-rotated',
+        'rt-callback',
+        'ciphertext-secret',
+        'key-secret',
+        'account-secret',
+        'database exploded',
+      ]) {
+        expect(exposed).not.toContain(secret);
+      }
+    },
+  );
+
+  it('allows a later auth write to complete after an observed persistence rejection', async () => {
+    const persistence = new FakePersistence();
+    persistence.records.set('session-1', { hubRefreshToken: 'rt-old' });
+    const hub = createFakeHubFetch({
+      refreshReplies: [
+        { rotatedRefreshToken: 'rt-failed' },
+        { rotatedRefreshToken: 'rt-recovered' },
+      ],
+    });
+    const router = await createAppAuthBff({ persistence, fetchImpl: hub.fetchImpl });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const control = persistence.controlNextWrite();
+
+    const failedRequest = refresh(router!);
+    await control.started;
+    control.reject(new Error('transient database failure'));
+    expect((await failedRequest).status).toBe(503);
+
+    const recoveredResponse = await refresh(router!);
+    expect(recoveredResponse.status).toBe(200);
+    expect(persistence.records.get('session-1')).toEqual({
+      hubRefreshToken: 'rt-recovered',
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it('does not resolve BFF creation until hydration completes', async () => {

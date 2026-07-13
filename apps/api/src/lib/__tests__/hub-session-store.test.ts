@@ -127,30 +127,102 @@ describe('DurableHubSessionStore', () => {
     ]);
   });
 
-  it('logs a token-free write failure without throwing through synchronous callers', async () => {
+  it('surfaces a fixed sanitized persistence error without throwing through synchronous calls', async () => {
     const persistence: HubSessionPersistence = {
       loadAll: async () => [],
       put: async () => {
-        throw new Error('database unavailable');
+        throw new Error('database unavailable for session-secret and rt-never-log');
+      },
+      remove: async () => {
+        throw new Error('delete failed for session-secret');
+      },
+    };
+    const store = new DurableHubSessionStore(persistence);
+    let sessionId = '';
+
+    expect(() => {
+      sessionId = store.create({
+        hubRefreshToken: 'rt-never-log',
+        accountId: 'account-secret',
+      });
+    }).not.toThrow();
+    expect(() => store.update(sessionId, 'rt-also-secret')).not.toThrow();
+    expect(() => store.delete(sessionId)).not.toThrow();
+
+    let barrierError: unknown;
+    try {
+      await store.whenIdle();
+    } catch (error) {
+      barrierError = error;
+    }
+
+    expect(barrierError).toMatchObject({
+      name: 'HubSessionPersistenceError',
+      message: 'Hub session persistence failed',
+    });
+    const publicError = String(barrierError);
+    for (const secret of [
+      'database unavailable',
+      'delete failed',
+      'put',
+      'remove',
+      sessionId,
+      'rt-never-log',
+      'rt-also-secret',
+      'ciphertext-secret',
+      'key-secret',
+      'account-secret',
+    ]) {
+      expect(publicError).not.toContain(secret);
+    }
+    expect((barrierError as { cause?: unknown }).cause).toBeUndefined();
+  });
+
+  it('keeps the ordering tail usable after a rejected operation is observed', async () => {
+    const calls: string[] = [];
+    let shouldFail = true;
+    const persistence: HubSessionPersistence = {
+      loadAll: async () => [],
+      put: async (_sessionId, record) => {
+        calls.push(record.hubRefreshToken);
+        if (shouldFail) {
+          shouldFail = false;
+          throw new Error('transient database failure');
+        }
       },
       remove: async () => undefined,
     };
+    const store = new DurableHubSessionStore(persistence);
+    const sessionId = store.create({ hubRefreshToken: 'rt-failed' });
+
+    await expect(store.whenIdle()).rejects.toMatchObject({
+      name: 'HubSessionPersistenceError',
+    });
+
+    store.update(sessionId, 'rt-recovered');
+    await expect(store.whenIdle()).resolves.toBeUndefined();
+    expect(calls).toEqual(['rt-failed', 'rt-recovered']);
+  });
+
+  it('emits no store-level console output for persistence failures', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const persistence: HubSessionPersistence = {
+      loadAll: async () => [],
+      put: async () => {
+        throw new Error('database failure with secret values');
+      },
+      remove: async () => undefined,
+    };
     const store = new DurableHubSessionStore(persistence);
 
-    const sessionId = store.create({ hubRefreshToken: 'rt-never-log', accountId: 'account-1' });
-    expect(() => store.update(sessionId, 'rt-also-secret')).not.toThrow();
-    await store.whenIdle();
-
-    expect(store.get(sessionId)).toEqual({
-      hubRefreshToken: 'rt-also-secret',
-      accountId: 'account-1',
+    store.create({ hubRefreshToken: 'rt-secret' });
+    await expect(store.whenIdle()).rejects.toMatchObject({
+      name: 'HubSessionPersistenceError',
     });
-    expect(warn).toHaveBeenCalled();
-    const warning = JSON.stringify(warn.mock.calls);
-    expect(warning).toContain('Hub session persistence write failed');
-    expect(warning).not.toContain('rt-never-log');
-    expect(warning).not.toContain('rt-also-secret');
+
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
   });
 
   it('keeps login transactions in memory, single-use, and outside persistence', () => {

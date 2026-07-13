@@ -29,7 +29,7 @@ export function createDrizzleHubSessionPersistence(
             ...(row.accountId === null ? {} : { accountId: row.accountId }),
           });
         } catch {
-          console.warn('Skipping corrupt persisted Hub session', row.id);
+          console.warn('Skipping corrupt persisted Hub session');
         }
       }
 

@@ -13,6 +13,13 @@ export interface HubSessionPersistence {
   remove(sessionId: string): Promise<void>;
 }
 
+export class HubSessionPersistenceError extends Error {
+  constructor() {
+    super('Hub session persistence failed');
+    this.name = 'HubSessionPersistenceError';
+  }
+}
+
 function generateOpaqueId(): string {
   return randomBytes(32).toString('base64url');
 }
@@ -20,7 +27,8 @@ function generateOpaqueId(): string {
 export class DurableHubSessionStore implements HubSessionStore {
   private readonly sessions = new Map<string, HubSessionRecord>();
   private readonly logins = new Map<string, HubLoginTransaction>();
-  private writeQueue: Promise<void> = Promise.resolve();
+  private readonly pendingWrites = new Set<Promise<void>>();
+  private orderingTail: Promise<void> = Promise.resolve();
 
   constructor(private readonly persistence: HubSessionPersistence) {}
 
@@ -36,14 +44,21 @@ export class DurableHubSessionStore implements HubSessionStore {
   }
 
   async whenIdle(): Promise<void> {
-    await this.writeQueue;
+    const observedWrites = [...this.pendingWrites];
+    const results = await Promise.allSettled(observedWrites);
+    for (const write of observedWrites) {
+      this.pendingWrites.delete(write);
+    }
+    if (results.some((result) => result.status === 'rejected')) {
+      throw new HubSessionPersistenceError();
+    }
   }
 
   create(data: HubSessionRecord): string {
     const sessionId = generateOpaqueId();
     const record = { ...data };
     this.sessions.set(sessionId, record);
-    this.enqueueWrite('put', sessionId, () => this.persistence.put(sessionId, record));
+    this.enqueueWrite(() => this.persistence.put(sessionId, record));
     return sessionId;
   }
 
@@ -59,14 +74,14 @@ export class DurableHubSessionStore implements HubSessionStore {
     }
     const record = { ...existing, hubRefreshToken };
     this.sessions.set(sessionId, record);
-    this.enqueueWrite('put', sessionId, () => this.persistence.put(sessionId, record));
+    this.enqueueWrite(() => this.persistence.put(sessionId, record));
   }
 
   delete(sessionId: string): void {
     if (!this.sessions.delete(sessionId)) {
       return;
     }
-    this.enqueueWrite('remove', sessionId, () => this.persistence.remove(sessionId));
+    this.enqueueWrite(() => this.persistence.remove(sessionId));
   }
 
   createLogin(transaction: HubLoginTransaction): string {
@@ -84,13 +99,9 @@ export class DurableHubSessionStore implements HubSessionStore {
     return { ...transaction };
   }
 
-  private enqueueWrite(
-    operation: 'put' | 'remove',
-    sessionId: string,
-    write: () => Promise<void>,
-  ): void {
-    this.writeQueue = this.writeQueue.then(write).catch(() => {
-      console.warn('Hub session persistence write failed', { operation, sessionId });
-    });
+  private enqueueWrite(write: () => Promise<void>): void {
+    const operation = this.orderingTail.then(write);
+    this.pendingWrites.add(operation);
+    this.orderingTail = operation.catch(() => undefined);
   }
 }

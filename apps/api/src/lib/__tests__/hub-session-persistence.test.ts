@@ -117,11 +117,10 @@ describe('createDrizzleHubSessionPersistence', () => {
         accountId: 'account-valid',
       },
     ]);
-    expect(warn).toHaveBeenCalledWith(
-      'Skipping corrupt persisted Hub session',
-      'session-corrupt',
-    );
+    expect(warn).toHaveBeenCalledWith('Skipping corrupt persisted Hub session');
     const warning = JSON.stringify(warn.mock.calls);
+    expect(warning).not.toContain('session-valid');
+    expect(warning).not.toContain('session-corrupt');
     expect(warning).not.toContain('rt-valid');
     expect(warning).not.toContain('rt-corrupt');
     expect(warning).not.toContain(validCiphertext);
