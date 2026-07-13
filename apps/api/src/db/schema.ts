@@ -465,6 +465,13 @@ export const salesOpsProducts = pgTable(
       precision: 10,
       scale: 2,
     }).notNull(),
+    sellerWithFinderCommissionType: text('seller_with_finder_commission_type')
+      .notNull()
+      .default('pct'),
+    sellerWithFinderCommissionValue: numeric('seller_with_finder_commission_value', {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
     finderCommissionType: text('finder_commission_type').notNull().default('pct'),
     finderCommissionValue: numeric('finder_commission_value', {
       precision: 10,
