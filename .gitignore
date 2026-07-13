@@ -19,6 +19,7 @@ dist/
 .playwright-mcp/
 .demo/
 .claude/worktrees/
+.worktrees/
 
 # Drizzle migration journal + snapshots are the source of truth for which
 # migrations exist and MUST be committed (D-F: RLS lives in the journaled
