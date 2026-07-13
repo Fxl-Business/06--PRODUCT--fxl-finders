@@ -1,0 +1,1 @@
+{"agent":"plan-check","slice":"auth-session-stability","status":"PASS","report":"nexo/runs/20260713-0908-auth-session-stability/agents/plan-check-revision1-report.md","summary":"Revision 1 closes all prior oracle and security-model gaps and is ready for Gate 1.","done":true,"started":"2026-07-13T12:24:30Z","ended":"2026-07-13T12:26:56Z","ts":"2026-07-13T12:26:56Z"}

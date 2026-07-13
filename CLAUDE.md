@@ -23,6 +23,7 @@ Keep the repository folder name unchanged until the editor session can safely mo
 - `orgId` is the active Hub workspace id.
 - Feature gates check `auth.claims.entitlements.modules`.
 - The core module for this product is `sales.core`.
+- Browser Hub access tokens are memory-only, cached until JWT `exp` minus 30 seconds, and concurrent `getToken()` calls share one in-flight refresh per provider; logout and workspace generation guards reject late responses.
 
 ## Tenancy
 

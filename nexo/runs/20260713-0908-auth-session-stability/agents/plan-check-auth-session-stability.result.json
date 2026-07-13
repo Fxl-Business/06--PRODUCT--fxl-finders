@@ -1,0 +1,1 @@
+{"agent":"plan-check","slice":"auth-session-stability","status":"FAIL","report":"nexo/runs/20260713-0908-auth-session-stability/agents/plan-check-report.md","summary":"Focused oracles do not prove React cache wiring or encrypted Drizzle persistence and migration contracts.","done":true,"started":"2026-07-13T12:18:00Z","ended":"2026-07-13T12:23:10Z","ts":"2026-07-13T12:23:10Z"}

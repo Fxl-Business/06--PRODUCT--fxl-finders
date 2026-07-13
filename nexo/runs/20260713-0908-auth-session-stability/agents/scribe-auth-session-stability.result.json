@@ -1,0 +1,1 @@
+{"agent":"scribe","slice":"auth-session-stability","status":"PASS","report":"nexo/runs/20260713-0908-auth-session-stability/run.md","summary":"Captured the verified browser-only delivery and parked the unresolved durable BFF session store without claiming server durability.","done":true,"started":"2026-07-13T13:41:46Z","ended":"2026-07-13T13:41:46Z","ts":"2026-07-13T13:41:46Z"}

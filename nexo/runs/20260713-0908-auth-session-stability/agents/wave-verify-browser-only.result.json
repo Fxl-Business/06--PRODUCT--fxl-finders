@@ -1,0 +1,11 @@
+{
+  "agent": "verify",
+  "slice": "browser-token-cache-wave-recovery",
+  "status": "PASS",
+  "verdict": "PASS",
+  "report_path": "nexo/runs/20260713-0908-auth-session-stability/agents/wave-verify-browser-only-report.md",
+  "summary": "The effective diff is browser-only, the API subtree matches the baseline, all six fresh verification commands passed, and every token-cache race, expiry, logout, and newest-switch acceptance criterion is satisfied.",
+  "done": true,
+  "started_at": "2026-07-13T13:30:00Z",
+  "completed_at": "2026-07-13T13:34:28Z"
+}

@@ -1,0 +1,1 @@
+{"agent":"verify","slice":"01-browser-token-cache","status":"FAIL","report":"nexo/runs/20260713-0908-auth-session-stability/agents/verify-01-browser-token-cache-report.md","summary":"Late workspace-switch responses can reseed a bearer token after logout clears authentication.","done":true,"started":"2026-07-13T12:37:32Z","ended":"2026-07-13T12:40:40Z","ts":"2026-07-13T12:40:40Z"}
