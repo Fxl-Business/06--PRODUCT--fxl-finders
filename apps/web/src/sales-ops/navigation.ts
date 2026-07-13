@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import type { AppRole } from '@/auth/claims';
 
-export type SalesOpsWorkspace = 'tatico' | 'operacional' | 'cadastros';
+export type SalesOpsWorkspace = 'tatico' | 'operacional' | 'config';
 export type SalesOpsRoleView = 'equipe' | 'vendedor' | 'finder';
 export type SalesOpsView =
   | 'dashboard'
@@ -28,22 +28,6 @@ export type SalesOpsNavigationItem = {
   label: string;
   icon: LucideIcon;
 };
-
-export type SalesOpsRoute = Readonly<{
-  workspace: SalesOpsWorkspace;
-  view: SalesOpsView;
-}>;
-
-export type SalesOpsRouteParams = Readonly<{
-  workspace?: string;
-  view?: string;
-}>;
-
-export type SalesOpsRouteResolution = Readonly<{
-  route: SalesOpsRoute;
-  path: string;
-  redirect: boolean;
-}>;
 
 const tacticalTeam: SalesOpsNavigationItem[] = [
   { id: 'dashboard', label: 'Visão geral', icon: BarChart3 },
@@ -64,7 +48,7 @@ const operational: SalesOpsNavigationItem[] = [
   { id: 'comissoes', label: 'Comissões', icon: BadgeDollarSign },
 ];
 
-const cadastros: SalesOpsNavigationItem[] = [
+const config: SalesOpsNavigationItem[] = [
   { id: 'produtos', label: 'Produtos', icon: Database },
   { id: 'clientes', label: 'Clientes', icon: ContactRound },
   { id: 'geral', label: 'Geral', icon: Cog },
@@ -77,7 +61,7 @@ export const salesOpsWorkspaces: Array<{
 }> = [
   { id: 'tatico', label: 'Tático', description: 'Indicadores e painéis' },
   { id: 'operacional', label: 'Operacional', description: 'Vendas e conferência' },
-  { id: 'cadastros', label: 'Cadastros', description: 'Catálogo e regras' },
+  { id: 'config', label: 'Configurações', description: 'Catálogo e regras' },
 ];
 
 export function getSalesOpsNavigation(
@@ -85,7 +69,7 @@ export function getSalesOpsNavigation(
   role: SalesOpsRoleView,
 ): SalesOpsNavigationItem[] {
   if (workspace === 'operacional') return operational;
-  if (workspace === 'cadastros') return role === 'equipe' ? cadastros : [];
+  if (workspace === 'config') return role === 'equipe' ? config : operational;
   if (role === 'vendedor') return tacticalSeller;
   if (role === 'finder') return tacticalFinder;
   return tacticalTeam;
@@ -100,51 +84,19 @@ export function getSalesOpsRoleViews(roles: readonly AppRole[]): SalesOpsRoleVie
   return views;
 }
 
-export function buildSalesOpsPath(route: SalesOpsRoute): string {
-  return `/${route.workspace}/${route.view}`;
-}
-
-export function getDefaultSalesOpsRoute(
+export function resolveInitialSalesOpsView(
+  workspace: SalesOpsWorkspace,
   role: SalesOpsRoleView,
-  preferredWorkspace?: SalesOpsWorkspace,
-): SalesOpsRoute {
-  if (preferredWorkspace) {
-    const preferredView = getSalesOpsNavigation(preferredWorkspace, role)[0]?.id;
-    if (preferredView) return { workspace: preferredWorkspace, view: preferredView };
-  }
-
-  return {
-    workspace: 'tatico',
-    view: getSalesOpsNavigation('tatico', role)[0]?.id ?? 'dashboard',
-  };
-}
-
-export function resolveSalesOpsRoute(
-  params: SalesOpsRouteParams,
-  role: SalesOpsRoleView,
-): SalesOpsRouteResolution {
-  const workspace = salesOpsWorkspaces.find((item) => item.id === params.workspace)?.id;
-  const view = workspace
-    ? getSalesOpsNavigation(workspace, role).find((item) => item.id === params.view)?.id
-    : undefined;
-
-  if (workspace && view) {
-    const route = { workspace, view };
-    return { route, path: buildSalesOpsPath(route), redirect: false };
-  }
-
-  const route = getDefaultSalesOpsRoute(role);
-  return { route, path: buildSalesOpsPath(route), redirect: true };
+  current?: SalesOpsView,
+): SalesOpsView {
+  const items = getSalesOpsNavigation(workspace, role);
+  if (current && items.some((item) => item.id === current)) return current;
+  return items[0]?.id ?? 'dashboard';
 }
 
 export function workspaceForView(view: SalesOpsView, role: SalesOpsRoleView): SalesOpsWorkspace {
   for (const workspace of salesOpsWorkspaces) {
     if (getSalesOpsNavigation(workspace.id, role).some((item) => item.id === view)) {
-      return workspace.id;
-    }
-  }
-  for (const workspace of salesOpsWorkspaces) {
-    if (getSalesOpsNavigation(workspace.id, 'equipe').some((item) => item.id === view)) {
       return workspace.id;
     }
   }
