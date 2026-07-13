@@ -72,6 +72,8 @@ export const ProductSchema = z.object({
   hasFinderCommission: z.boolean().default(false),
   sellerCommissionType: z.enum(['pct', 'fix']).default('pct'),
   sellerCommissionValue: z.number().nonnegative().default(10),
+  sellerWithFinderCommissionType: z.enum(['pct', 'fix']).optional(),
+  sellerWithFinderCommissionValue: z.number().nonnegative().optional(),
   finderCommissionType: z.enum(['pct', 'fix']).default('pct'),
   finderCommissionValue: z.number().nonnegative().default(3),
   modules: z.array(ProductModuleSchema).default([]),
@@ -436,6 +438,11 @@ export async function createProduct(db: Db, orgId: string, data: ProductInput) {
         ...data,
         orgId,
         sellerCommissionValue: String(data.sellerCommissionValue),
+        sellerWithFinderCommissionType:
+          data.sellerWithFinderCommissionType ?? data.sellerCommissionType,
+        sellerWithFinderCommissionValue: String(
+          data.sellerWithFinderCommissionValue ?? data.sellerCommissionValue,
+        ),
         finderCommissionValue: String(data.finderCommissionValue),
       })
       .returning();
@@ -450,11 +457,19 @@ export async function updateProduct(
   data: Partial<ProductInput>,
 ) {
   return withTenant(db, orgId, async (tx) => {
-    const { sellerCommissionValue, finderCommissionValue, ...rest } = data;
+    const {
+      sellerCommissionValue,
+      sellerWithFinderCommissionValue,
+      finderCommissionValue,
+      ...rest
+    } = data;
     const patch: Partial<typeof salesOpsProducts.$inferInsert> = {
       ...rest,
       ...(sellerCommissionValue !== undefined
         ? { sellerCommissionValue: String(sellerCommissionValue) }
+        : {}),
+      ...(sellerWithFinderCommissionValue !== undefined
+        ? { sellerWithFinderCommissionValue: String(sellerWithFinderCommissionValue) }
         : {}),
       ...(finderCommissionValue !== undefined
         ? { finderCommissionValue: String(finderCommissionValue) }
