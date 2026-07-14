@@ -3307,6 +3307,7 @@ function SaleWizardDialogBody({
                                 ))}
                               </NativeSelect>
                               <Input
+                                aria-label={`Quantidade do item ${index + 1}`}
                                 className={`sales-ops-num h-10 rounded-[9px] text-center ${formInputClass}`}
                                 min={1}
                                 onChange={(event) => setItem(index, { quantity: event.target.value })}

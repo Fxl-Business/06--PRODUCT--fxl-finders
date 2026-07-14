@@ -205,6 +205,8 @@ describe('sale wizard custom item labels', () => {
     await changeInput(labeledInput('Nome / descrição do item 2'), 'Módulo RH');
     await changeInput(labeledInput('Valor unitário do item 2'), '9000');
 
+    expect(labeledInput('Quantidade do item 1').value).toBe('1');
+    expect(labeledInput('Quantidade do item 2').value).toBe('1');
     expect(labeledInput('Nome / descrição do item 1').value).toBe('Módulo Vendas');
     expect(labeledInput('Nome / descrição do item 2').value).toBe('Módulo RH');
 
