@@ -77,9 +77,15 @@ describe('conversion ingest + commission + audit (Phase 05)', () => {
       VALUES (${ORG}, ${code}, ${finderId}, ${appId}, ${productId}, 100000, 10700, 'sig',
               'https://checkout.example.com/precos', 'active') RETURNING id`;
     linkId = (link as { id: string }).id;
+    // Seed the click safely in the past. Last-touch attribution requires
+    // click.created_at <= closed_at, but created_at is stamped by the Postgres
+    // clock (now()) while the webhook's closed_at is stamped by the Node clock
+    // (new Date()). With both at "now", clock skew between the DB and the test
+    // process can push the click a few ms past closed_at and drop it out of the
+    // window. A real click always precedes the sale close, so backdate it.
     await seed`
       INSERT INTO clicks (click_id, org_id, link_id, finder_id, app_id, product_id, created_at)
-      VALUES (${clickId}, ${ORG}, ${linkId}, ${finderId}, ${appId}, ${productId}, now())`;
+      VALUES (${clickId}, ${ORG}, ${linkId}, ${finderId}, ${appId}, ${productId}, now() - interval '1 hour')`;
   });
 
   afterAll(async () => {
