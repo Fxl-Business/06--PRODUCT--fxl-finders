@@ -1,4 +1,3 @@
-import type { HubAuthContext } from '@fxl-business/hub-sdk';
 import {
   createHubBff,
   requireHubAuth,
@@ -11,10 +10,20 @@ import { tryLoadHubAuthConfig } from '../config/auth-provider.js';
 
 type EnvLike = Record<string, string | undefined>;
 
-export type AppHubAuthContext = Pick<
-  HubAuthContext,
-  'accountId' | 'workspaceId' | 'entitlements' | 'roles'
->;
+/**
+ * Product authorization boundary for fields populated by the SDK verifier.
+ * Optional decoded claims remain outside this type and cannot grant product access.
+ */
+export type AppHubAuthContext = {
+  accountId: string;
+  workspaceId: string;
+  entitlements: {
+    modules: string[];
+  };
+  roles: {
+    workspace: string;
+  };
+};
 
 type AppRole = 'admin' | 'seller' | 'finder';
 

@@ -12,6 +12,52 @@ import {
   type AppHubAuthContext,
 } from '../app-auth.js';
 
+type IsAny<Value> = 0 extends 1 & Value ? true : false;
+
+function expectCompileTimeFalse<Value extends false>(value?: Value): void {
+  void value;
+}
+
+function expectAppHubAuthContext(auth: AppHubAuthContext): void {
+  void auth;
+}
+
+expectCompileTimeFalse<IsAny<AppHubAuthContext['accountId']>>();
+expectCompileTimeFalse<IsAny<AppHubAuthContext['workspaceId']>>();
+expectCompileTimeFalse<IsAny<AppHubAuthContext['entitlements']>>();
+expectCompileTimeFalse<IsAny<AppHubAuthContext['entitlements']['modules']>>();
+expectCompileTimeFalse<IsAny<AppHubAuthContext['roles']>>();
+expectCompileTimeFalse<IsAny<AppHubAuthContext['roles']['workspace']>>();
+
+expectAppHubAuthContext({
+  // @ts-expect-error Verified Hub account ids must be strings.
+  accountId: 123,
+  workspaceId: 'workspace-1',
+  entitlements: { modules: ['sales.core'] },
+  roles: { workspace: 'member' },
+});
+expectAppHubAuthContext({
+  accountId: 'account-1',
+  // @ts-expect-error Verified Hub workspace ids must be strings.
+  workspaceId: null,
+  entitlements: { modules: ['sales.core'] },
+  roles: { workspace: 'member' },
+});
+expectAppHubAuthContext({
+  accountId: 'account-1',
+  workspaceId: 'workspace-1',
+  // @ts-expect-error Verified Hub entitlements must expose string modules.
+  entitlements: 'not-entitlements',
+  roles: { workspace: 'member' },
+});
+expectAppHubAuthContext({
+  accountId: 'account-1',
+  workspaceId: 'workspace-1',
+  entitlements: { modules: ['sales.core'] },
+  // @ts-expect-error Verified Hub roles must expose a string workspace role.
+  roles: false,
+});
+
 const registeredEnv = {
   NODE_ENV: 'test',
   FXL_HUB_API_URL: 'http://hub.test',
