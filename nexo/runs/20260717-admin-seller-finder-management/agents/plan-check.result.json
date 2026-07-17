@@ -1,0 +1,11 @@
+{
+  "agent": "plan-checker",
+  "slice": "feature",
+  "status": "PASS",
+  "report": "nexo/runs/20260717-admin-seller-finder-management/plan-check.md",
+  "summary": "Plan set covers the requested Cadastros move and admin account linking; slice 01 is executable, slice 02 is safely parked on the missing Hub contract, and dependency and wave metadata were corrected.",
+  "done": true,
+  "started": "2026-07-17T03:42:00Z",
+  "ended": "2026-07-17T03:46:09Z",
+  "ts": "2026-07-17T03:46:09Z"
+}

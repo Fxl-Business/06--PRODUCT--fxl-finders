@@ -1,0 +1,11 @@
+{
+  "agent": "plan",
+  "slice": "01-cadastros-people-management",
+  "status": "PASS",
+  "report": "nexo/plans/20260717-admin-seller-finder-management/01-cadastros-people-management.md",
+  "summary": "Test-first plan moves admin people management to Cadastros, preserves read-only personal panels, and gates people mutations with requireAdmin.",
+  "done": true,
+  "started": "2026-07-17T03:28:30Z",
+  "ended": "2026-07-17T03:36:24Z",
+  "ts": "2026-07-17T03:36:24Z"
+}
