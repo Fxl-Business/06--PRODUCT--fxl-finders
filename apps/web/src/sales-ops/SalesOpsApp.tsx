@@ -506,6 +506,10 @@ export function SalesOpsApp() {
   const dashboard = useMemo(() => buildDashboardModel(bootstrap), [bootstrap]);
   const navItems = getSalesOpsNavigation(workspace, profile.roles);
   const title = titleForView(view, workspace);
+  const canManagePeople =
+    workspace === 'cadastros' &&
+    (view === 'vendedores' || view === 'finders') &&
+    profile.roles.includes('admin');
   const payableBrl = bootstrap.payables
     .filter((payable) => payable.status === 'open')
     .reduce((sum, payable) => sum + payable.amountBrl, 0);
@@ -534,11 +538,11 @@ export function SalesOpsApp() {
       setModal({ kind: 'client' });
       return;
     }
-    if (view === 'vendedores') {
+    if (canManagePeople && view === 'vendedores') {
       setModal({ kind: 'person', roleHint: 'seller' });
       return;
     }
-    if (view === 'finders') {
+    if (canManagePeople && view === 'finders') {
       setModal({ kind: 'person', roleHint: 'finder' });
       return;
     }
@@ -552,11 +556,13 @@ export function SalesOpsApp() {
         ? 'Novo produto'
         : view === 'clientes'
           ? 'Novo cliente'
-          : view === 'vendedores'
+          : view === 'vendedores' && canManagePeople
             ? 'Novo vendedor'
-            : view === 'finders'
+            : view === 'finders' && canManagePeople
               ? 'Novo finder'
-              : 'Nova venda';
+              : view === 'vendedores' || view === 'finders'
+                ? null
+                : 'Nova venda';
   const availableWorkspaces = salesOpsWorkspaces.filter((item) =>
     visibleWorkspaceIds.includes(item.id),
   );
@@ -911,14 +917,22 @@ export function SalesOpsApp() {
                   <PeopleView
                     bootstrap={bootstrap}
                     mode="seller"
-                    onEdit={(person) => setModal({ kind: 'person', person, roleHint: 'seller' })}
+                    onEdit={
+                      canManagePeople
+                        ? (person) => setModal({ kind: 'person', person, roleHint: 'seller' })
+                        : undefined
+                    }
                   />
                 ) : null}
                 {view === 'finders' ? (
                   <PeopleView
                     bootstrap={bootstrap}
                     mode="finder"
-                    onEdit={(person) => setModal({ kind: 'person', person, roleHint: 'finder' })}
+                    onEdit={
+                      canManagePeople
+                        ? (person) => setModal({ kind: 'person', person, roleHint: 'finder' })
+                        : undefined
+                    }
                   />
                 ) : null}
                 {view === 'comissoes' ? <CommissionsView bootstrap={bootstrap} /> : null}
@@ -1257,7 +1271,7 @@ function PeopleView({
 }: {
   bootstrap: SalesOpsBootstrap;
   mode: 'seller' | 'finder';
-  onEdit: (person: SalesOpsPerson) => void;
+  onEdit?: (person: SalesOpsPerson) => void;
 }) {
   const people = bootstrap.people.filter((person) => (mode === 'seller' ? person.isSeller : person.isFinder));
   if (people.length === 0) {
@@ -1273,13 +1287,8 @@ function PeopleView({
     <div className="grid gap-[14px] xl:grid-cols-3 md:grid-cols-2">
       {people.map((person) => {
         const metrics = personMetrics(bootstrap, person, mode);
-        return (
-          <button
-            className={`${panelClass} p-5 text-left transition hover:border-[#d8c79a]`}
-            key={person.id}
-            onClick={() => onEdit(person)}
-            type="button"
-          >
+        const cardBody = (
+          <>
             <div className="mb-4 flex items-center gap-3">
               <div className="sales-ops-num flex h-[46px] w-[46px] flex-none items-center justify-center rounded-[13px] bg-gradient-to-br from-[#eaa81a] to-[#9c7210] text-[17px] font-bold text-white">
                 {initials(person.displayName)}
@@ -1305,6 +1314,26 @@ function PeopleView({
                 </div>
               </div>
             </div>
+          </>
+        );
+
+        if (!onEdit) {
+          return (
+            <article className={`${panelClass} p-5 text-left`} key={person.id}>
+              {cardBody}
+            </article>
+          );
+        }
+
+        return (
+          <button
+            aria-label={`Editar ${person.displayName}`}
+            className={`${panelClass} p-5 text-left transition hover:border-[#d8c79a]`}
+            key={person.id}
+            onClick={() => onEdit(person)}
+            type="button"
+          >
+            {cardBody}
           </button>
         );
       })}

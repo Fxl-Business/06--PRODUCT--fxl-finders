@@ -40,13 +40,26 @@ const mutation = {
   mutate: vi.fn(),
 };
 
+const personFixture = {
+  id: '11111111-1111-4111-8111-111111111111',
+  orgId: '22222222-2222-4222-8222-222222222222',
+  displayName: 'Alex Silva',
+  contactEmail: 'alex.silva@fxl.example',
+  status: 'active' as const,
+  isSeller: true,
+  isFinder: true,
+  isCollaborator: false,
+  createdAt: '2026-07-01T00:00:00.000Z',
+  updatedAt: null,
+};
+
 vi.mock('../hooks', () => ({
   useSalesOpsBootstrap: () => ({
     data: {
       sales: [],
       products: [],
       clients: [],
-      people: [],
+      people: [personFixture],
       payables: [],
       saleItems: [],
       settings: null,
@@ -121,7 +134,10 @@ async function renderRoute(path: string, roles: AppRole[]) {
   root = createRoot(container);
   await act(async () => {
     root?.render(
-      <MemoryRouter initialEntries={[path]}>
+      <MemoryRouter
+        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+        initialEntries={[path]}
+      >
         <Routes>
           <Route element={<SalesOpsApp />} path="/" />
           <Route element={<SalesOpsApp />} path="/:workspace/:view" />
@@ -141,7 +157,11 @@ async function renderHistory(entries: string[], roles: AppRole[]) {
   root = createRoot(container);
   await act(async () => {
     root?.render(
-      <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
+      <MemoryRouter
+        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+        initialEntries={entries}
+        initialIndex={entries.length - 1}
+      >
         <Routes>
           <Route element={<SalesOpsApp />} path="/" />
           <Route element={<SalesOpsApp />} path="/:workspace/:view" />
@@ -165,6 +185,14 @@ function buttonByText(label: string): HTMLButtonElement {
   return match;
 }
 
+function buttonByTextOrNull(label: string): HTMLButtonElement | null {
+  return (
+    [...container.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent?.trim() === label,
+    ) ?? null
+  );
+}
+
 function workspaceButton(): HTMLButtonElement {
   const match = container.querySelector('button[title="Trocar workspace"]');
   if (!(match instanceof HTMLButtonElement)) throw new Error('workspace button not found');
@@ -181,6 +209,16 @@ function expectHeading(title: string) {
 
 function expectWorkspace(label: string) {
   expect(workspaceButton().textContent).toContain(label);
+}
+
+function mainRegion(): HTMLElement {
+  const match = container.querySelector('main');
+  if (!(match instanceof HTMLElement)) throw new Error('main region not found');
+  return match;
+}
+
+function buttonByAccessibleName(label: string): HTMLButtonElement | null {
+  return container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
 }
 
 async function click(element: HTMLElement) {
@@ -318,5 +356,54 @@ describe('Sales Ops canonical routing', () => {
     expect(pathname()).toBe('/operacional/vendas');
     expectWorkspace('Operacional');
     expectHeading('Vendas');
+  });
+
+  it('keeps people management in Cadastros and personal people panels read-only', async () => {
+    await renderRoute('/tatico/dashboard', ['admin']);
+    const tacticalNavigation = container.querySelector('aside nav');
+    expect(
+      [...(tacticalNavigation?.querySelectorAll('button') ?? [])].map((item) =>
+        item.getAttribute('aria-label'),
+      ),
+    ).toEqual(['Visão geral']);
+    expect(mainRegion().querySelector('button[aria-label="Vendedores"]')).toBeNull();
+    expect(mainRegion().querySelector('button[aria-label="Finders"]')).toBeNull();
+    expect(buttonByTextOrNull('Novo vendedor')).toBeNull();
+    expect(buttonByTextOrNull('Novo finder')).toBeNull();
+
+    await renderRoute('/tatico/vendedores', ['admin']);
+    expect(pathname()).toBe('/tatico/dashboard');
+    expectHeading('Visão geral');
+
+    await renderRoute('/cadastros/vendedores', ['admin']);
+    expectWorkspace('Cadastros');
+    expectHeading('Vendedores');
+    buttonByText('Novo vendedor');
+    const editSeller = buttonByAccessibleName('Editar Alex Silva');
+    expect(editSeller).not.toBeNull();
+    await click(editSeller!);
+    expect(container.querySelector('h2')?.textContent).toBe('Pessoa');
+
+    await renderRoute('/cadastros/finders', ['admin']);
+    expectWorkspace('Cadastros');
+    expectHeading('Finders');
+    buttonByText('Novo finder');
+    expect(buttonByAccessibleName('Editar Alex Silva')).not.toBeNull();
+
+    for (const personal of [
+      { path: '/meus-dados/vendedores', roles: ['seller'] as AppRole[] },
+      { path: '/meus-dados/finders', roles: ['finder'] as AppRole[] },
+      { path: '/meus-dados/vendedores', roles: ['admin', 'seller'] as AppRole[] },
+    ]) {
+      await renderRoute(personal.path, personal.roles);
+      expectWorkspace('Meus dados');
+      expectHeading('Meu painel');
+      expect(mainRegion().textContent).toContain('0 vendas no período');
+      expect(mainRegion().querySelector('article')?.textContent).toContain('Alex Silva');
+      expect(buttonByTextOrNull('Novo vendedor')).toBeNull();
+      expect(buttonByTextOrNull('Novo finder')).toBeNull();
+      expect(buttonByAccessibleName('Editar Alex Silva')).toBeNull();
+      expect(container.querySelector('h2')?.textContent).not.toBe('Pessoa');
+    }
   });
 });
