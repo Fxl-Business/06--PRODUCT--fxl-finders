@@ -40,8 +40,12 @@ Keep the repository folder name unchanged until the editor session can safely mo
 
 ## Sales Ops Routing
 
-- Canonical Sales Ops routes are `tatico/dashboard|vendedores|finders`, `operacional/vendas|comissoes`, and `cadastros/produtos|clientes|geral`.
+- Canonical Sales Ops routes are `tatico/dashboard|vendedores|finders`, `operacional/vendas|comissoes`, `cadastros/produtos|clientes|geral`, and `meus-dados/vendedores|comissoes|finders|vendas`.
 - The URL is the single source of truth for the active Sales Ops workspace and page.
+- Workspace visibility is driven purely by the Hub role set `profile.roles: AppRole[]` (`AppRole = 'admin' | 'seller' | 'finder'`) via `getVisibleWorkspaces` in `apps/web/src/sales-ops/navigation.ts`. There is no viewing-level switcher; the old "Nível de visualização" selector was removed.
+- Visibility rule: `admin` (team) sees `tatico` + `operacional` + `cadastros`; holding `seller` or `finder` adds the `meus-dados` workspace. So seller-only or finder-only sees only `meus-dados` and defaults there; team-only sees the three team workspaces and no `meus-dados`; team + seller/finder sees all four. Zero recognized roles keeps `/no-role`.
+- "Team" is not a Hub product role. `admin` is synthesized in-app from the Hub workspace `owner`/`admin` flag (see `getRolesFromHubClaims` in `apps/web/src/auth/claims.ts`); the Hub product config defines only `seller` and `finder`.
+- `meus-dados` reuses existing panels and view components (seller: `vendedores` "Meu painel" + `comissoes`; finder: `finders` "Meu painel" + `vendas` "Indicações"); it is not a new page. Data scoping stays backend/RLS-authoritative.
 - Open-price sale item labels use the existing `items[].productName` to `productNameSnapshot` path while preserving the original `productId`, so do not add a parallel description field or migration.
 - Keep the static legacy route trees `/admin/*`, `/finder/*`, `/seller/*`, and `/no-role` unchanged.
 

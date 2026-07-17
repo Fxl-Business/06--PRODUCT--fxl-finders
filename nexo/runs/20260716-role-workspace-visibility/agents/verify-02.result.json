@@ -1,0 +1,9 @@
+{
+  "agent": "verify",
+  "slice": "02-role-driven-workspace-visibility",
+  "status": "PASS",
+  "report": "navigation.test.ts: 10/10 passed. routing.test.tsx: 8/8 passed. Full web suite: 13 files, 74/74 passed. type-check: clean. lint: clean (no errors). Diff touches only the 4 expected files (git diff --name-only master..HEAD); router.tsx untouched. getVisibleWorkspaces in navigation.ts: admin -> ['tatico','operacional','cadastros']; seller or finder -> ['meus-dados']; admin+seller+finder -> all four; [] -> []. navigation.test.ts asserts exactly this matrix plus resolveSalesOpsRoute redirect behavior for role-forbidden routes (seller hitting /tatico or /cadastros redirects to /meus-dados/vendedores; team hitting /meus-dados redirects to /tatico/dashboard). routing.test.tsx has explicit tests: 'lands seller-only users in Meus dados and blocks team workspaces' (/ and /operacional/vendas both resolve to /meus-dados/vendedores for seller), 'no longer renders the viewing-level switcher' (asserts button[title=\"Trocar visualização\"] is null and text 'Nível de visualização' absent), and 'shows all four workspaces for team plus personal roles'. Grep across SalesOpsApp.tsx and navigation.ts confirms no remaining references to activeRoleView/selectedRoleView/getSalesOpsRoleViews/roleOptions/viewingLevel. Zero-role case: SalesOpsApp.tsx redirects to /no-role when getVisibleWorkspaces returns [].",
+  "summary": "All tests, type-check, and lint pass; visibility matrix and switcher removal verified in code, diff scoped to the 4 expected files with router.tsx untouched.",
+  "done": true,
+  "ts": "2026-07-17T01:30:01Z"
+}
