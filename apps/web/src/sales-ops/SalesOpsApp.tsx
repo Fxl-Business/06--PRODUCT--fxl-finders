@@ -21,7 +21,7 @@ import {
   Trash2,
   UserRound,
 } from 'lucide-react';
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuthProfile, useLogout } from '@/auth/react';
 import { Badge } from '@/components/ui/badge';
@@ -510,6 +510,20 @@ export function SalesOpsApp() {
     workspace === 'cadastros' &&
     (view === 'vendedores' || view === 'finders') &&
     profile.roles.includes('admin');
+
+  useEffect(() => {
+    if (canManagePeople) return;
+
+    let active = true;
+    queueMicrotask(() => {
+      if (active) {
+        setModal((current) => (current?.kind === 'person' ? null : current));
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [canManagePeople]);
 
   const payableBrl = bootstrap.payables
     .filter((payable) => payable.status === 'open')

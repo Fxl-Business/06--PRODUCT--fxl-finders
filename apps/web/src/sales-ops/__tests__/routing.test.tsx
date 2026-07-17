@@ -451,4 +451,19 @@ describe('Sales Ops canonical routing', () => {
     expect(pathname()).toBe('/cadastros/vendedores');
     expect(container.querySelector('h2')).toBeNull();
   });
+
+  it('does not restore a stale people dialog through browser history', async () => {
+    await renderHistory(['/tatico/dashboard', '/cadastros/vendedores'], ['admin']);
+    await click(buttonByText('Novo vendedor'));
+    expect(container.querySelector('h2')?.textContent).toBe('Pessoa');
+
+    await click(buttonByText('Back'));
+    expect(pathname()).toBe('/tatico/dashboard');
+    expect(container.querySelector('h2')).toBeNull();
+
+    await click(buttonByText('Forward'));
+    expect(pathname()).toBe('/cadastros/vendedores');
+    expect(container.querySelector('h2')).toBeNull();
+    expect(buttonByTextOrNull('Salvar')).toBeNull();
+  });
 });
