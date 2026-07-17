@@ -1,0 +1,11 @@
+{
+  "agent": "verify",
+  "slice": "01-cadastros-people-management",
+  "status": "FAIL",
+  "report": "nexo/runs/20260717-admin-seller-finder-management/verify-01.md",
+  "summary": "Focused tests, lint, type-checks, and diff checks pass, but person dialog state can survive URL or browser-history route changes and reopen on return to Cadastros.",
+  "done": true,
+  "started": "2026-07-17T04:06:21Z",
+  "ended": "2026-07-17T04:07:53Z",
+  "ts": "2026-07-17T04:07:53Z"
+}

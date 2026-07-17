@@ -1,0 +1,11 @@
+{
+  "agent": "execute",
+  "slice": "01-cadastros-people-management",
+  "status": "PASS",
+  "report": "nexo/runs/20260717-admin-seller-finder-management/execute-01.md",
+  "summary": "PASS: Cadastros owns admin people management, mutations require admin, and seller/finder dialogs are bound to their exact routes at 887ec01.",
+  "done": true,
+  "started": "2026-07-17T03:48:30Z",
+  "ended": "2026-07-17T04:22:41Z",
+  "ts": "2026-07-17T04:22:41Z"
+}

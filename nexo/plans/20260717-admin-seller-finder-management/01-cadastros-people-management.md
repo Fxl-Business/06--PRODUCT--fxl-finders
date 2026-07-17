@@ -1,7 +1,7 @@
 ---
 id: 01-cadastros-people-management
 milestone: null
-status: todo
+status: done
 depends_on: []
 files_modified:
   - CLAUDE.md

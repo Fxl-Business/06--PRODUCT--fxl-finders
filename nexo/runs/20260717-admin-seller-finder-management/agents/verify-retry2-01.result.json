@@ -1,0 +1,11 @@
+{
+  "agent": "verify",
+  "slice": "01-cadastros-people-management",
+  "status": "PASS",
+  "report": "nexo/runs/20260717-admin-seller-finder-management/verify-retry2-01.md",
+  "summary": "Focused web and API oracles, lint, type checks, diff guard, route lifecycle, authorization, and tenant-safety inspection pass; authenticated browser screenshots are unavailable because no browser backend exists.",
+  "done": true,
+  "started": "2026-07-17T04:23:30Z",
+  "ended": "2026-07-17T04:27:00Z",
+  "ts": "2026-07-17T04:27:00Z"
+}
