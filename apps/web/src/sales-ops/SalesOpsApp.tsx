@@ -510,6 +510,7 @@ export function SalesOpsApp() {
     workspace === 'cadastros' &&
     (view === 'vendedores' || view === 'finders') &&
     profile.roles.includes('admin');
+
   const payableBrl = bootstrap.payables
     .filter((payable) => payable.status === 'open')
     .reduce((sum, payable) => sum + payable.amountBrl, 0);
@@ -518,11 +519,13 @@ export function SalesOpsApp() {
 
   function setWorkspace(next: SalesOpsWorkspace) {
     setWorkspaceMenuOpen(false);
+    setModal((current) => (current?.kind === 'person' ? null : current));
     navigate(buildSalesOpsPath(getDefaultSalesOpsRoute(profile.roles, next)));
   }
 
   function go(next: SalesOpsView) {
     setWorkspaceMenuOpen(false);
+    setModal((current) => (current?.kind === 'person' ? null : current));
     const targetWorkspace = navItems.some((item) => item.id === next)
       ? workspace
       : workspaceForView(next, profile.roles);
@@ -980,7 +983,7 @@ export function SalesOpsApp() {
         saving={saveClient.isPending}
       />
       <PersonDialog
-        modal={modal?.kind === 'person' ? modal : null}
+        modal={canManagePeople && modal?.kind === 'person' ? modal : null}
         onClose={() => setModal(null)}
         onSave={(payload) => {
           savePerson.mutate(payload, { onSuccess: () => setModal(null) });

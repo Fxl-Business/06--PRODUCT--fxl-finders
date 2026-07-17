@@ -399,11 +399,56 @@ describe('Sales Ops canonical routing', () => {
       expectWorkspace('Meus dados');
       expectHeading('Meu painel');
       expect(mainRegion().textContent).toContain('0 vendas no período');
-      expect(mainRegion().querySelector('article')?.textContent).toContain('Alex Silva');
+      const personalCard = mainRegion().querySelector('article');
+      expect(personalCard?.textContent).toContain('Alex Silva');
+      await click(personalCard!);
       expect(buttonByTextOrNull('Novo vendedor')).toBeNull();
       expect(buttonByTextOrNull('Novo finder')).toBeNull();
       expect(buttonByAccessibleName('Editar Alex Silva')).toBeNull();
       expect(container.querySelector('h2')?.textContent).not.toBe('Pessoa');
     }
+  });
+
+  it('closes people management when the mounted app leaves Cadastros', async () => {
+    await renderRoute('/cadastros/vendedores', ['admin', 'seller']);
+    await click(buttonByText('Novo vendedor'));
+    expect(container.querySelector('h2')?.textContent).toBe('Pessoa');
+    expect(buttonByTextOrNull('Salvar')).not.toBeNull();
+
+    await click(workspaceButton());
+    await click(buttonByText('Tático'));
+    expect(pathname()).toBe('/tatico/dashboard');
+    expectHeading('Visão geral');
+    expect(container.querySelector('h2')).toBeNull();
+    expect(buttonByTextOrNull('Salvar')).toBeNull();
+
+    await click(workspaceButton());
+    await click(buttonByText('Cadastros'));
+    expect(pathname()).toBe('/cadastros/produtos');
+    await click(buttonByAccessibleName('Vendedores')!);
+    expect(pathname()).toBe('/cadastros/vendedores');
+    expect(container.querySelector('h2')).toBeNull();
+
+    await click(buttonByAccessibleName('Editar Alex Silva')!);
+    expect(container.querySelector('h2')?.textContent).toBe('Pessoa');
+
+    await click(workspaceButton());
+    await click(buttonByText('Meus dados'));
+    expect(pathname()).toBe('/meus-dados/vendedores');
+    expectHeading('Meu painel');
+    expect(container.querySelector('h2')).toBeNull();
+    expect(buttonByTextOrNull('Salvar')).toBeNull();
+
+    const personalCard = mainRegion().querySelector('article');
+    expect(personalCard?.textContent).toContain('Alex Silva');
+    await click(personalCard!);
+    expect(container.querySelector('h2')).toBeNull();
+    expect(mutation.mutate).not.toHaveBeenCalled();
+
+    await click(workspaceButton());
+    await click(buttonByText('Cadastros'));
+    await click(buttonByAccessibleName('Vendedores')!);
+    expect(pathname()).toBe('/cadastros/vendedores');
+    expect(container.querySelector('h2')).toBeNull();
   });
 });
