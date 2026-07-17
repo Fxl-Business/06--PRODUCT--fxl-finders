@@ -21,7 +21,7 @@ describe('sales operations navigation', () => {
     expect(salesOpsWorkspaces).toEqual([
       { id: 'tatico', label: 'Tático', description: 'Indicadores e painéis' },
       { id: 'operacional', label: 'Operacional', description: 'Vendas e conferência' },
-      { id: 'cadastros', label: 'Cadastros', description: 'Catálogo e regras' },
+      { id: 'cadastros', label: 'Cadastros', description: 'Pessoas, catálogo e regras' },
       { id: 'meus-dados', label: 'Meus dados', description: 'Painel e comissões pessoais' },
     ]);
   });
@@ -41,11 +41,7 @@ describe('sales operations navigation', () => {
   });
 
   it('renders fixed team navigation for the team workspaces', () => {
-    expect(getSalesOpsNavigation('tatico', team).map((item) => item.id)).toEqual([
-      'dashboard',
-      'vendedores',
-      'finders',
-    ]);
+    expect(getSalesOpsNavigation('tatico', team).map((item) => item.id)).toEqual(['dashboard']);
     expect(getSalesOpsNavigation('operacional', team).map((item) => item.id)).toEqual([
       'vendas',
       'comissoes',
@@ -53,6 +49,8 @@ describe('sales operations navigation', () => {
     expect(getSalesOpsNavigation('cadastros', team).map((item) => item.id)).toEqual([
       'produtos',
       'clientes',
+      'vendedores',
+      'finders',
       'geral',
     ]);
   });
@@ -128,6 +126,16 @@ describe('sales operations navigation', () => {
       path: '/meus-dados/vendas',
       redirect: false,
     });
+    expect(resolveSalesOpsRoute({ workspace: 'cadastros', view: 'vendedores' }, team)).toEqual({
+      route: { workspace: 'cadastros', view: 'vendedores' },
+      path: '/cadastros/vendedores',
+      redirect: false,
+    });
+    expect(resolveSalesOpsRoute({ workspace: 'cadastros', view: 'finders' }, team)).toEqual({
+      route: { workspace: 'cadastros', view: 'finders' },
+      path: '/cadastros/finders',
+      redirect: false,
+    });
   });
 
   it('redirects routes pointing at an invisible or forbidden target to the role default', () => {
@@ -166,6 +174,16 @@ describe('sales operations navigation', () => {
       path: '/meus-dados/vendedores',
       redirect: true,
     });
+    expect(resolveSalesOpsRoute({ workspace: 'tatico', view: 'vendedores' }, team)).toEqual({
+      route: { workspace: 'tatico', view: 'dashboard' },
+      path: '/tatico/dashboard',
+      redirect: true,
+    });
+    expect(resolveSalesOpsRoute({ workspace: 'tatico', view: 'finders' }, team)).toEqual({
+      route: { workspace: 'tatico', view: 'dashboard' },
+      path: '/tatico/dashboard',
+      redirect: true,
+    });
   });
 
   it('maps a view to its workspace within the visible set, team taking precedence', () => {
@@ -176,7 +194,9 @@ describe('sales operations navigation', () => {
     expect(workspaceForView('comissoes', seller)).toBe('meus-dados');
     expect(workspaceForView('finders', finder)).toBe('meus-dados');
     expect(workspaceForView('vendas', finder)).toBe('meus-dados');
-    expect(workspaceForView('vendedores', ['admin', 'seller'])).toBe('tatico');
+    expect(workspaceForView('vendedores', team)).toBe('cadastros');
+    expect(workspaceForView('finders', team)).toBe('cadastros');
+    expect(workspaceForView('vendedores', ['admin', 'seller'])).toBe('cadastros');
     expect(workspaceForView('vendas', ['admin', 'finder'])).toBe('operacional');
   });
 

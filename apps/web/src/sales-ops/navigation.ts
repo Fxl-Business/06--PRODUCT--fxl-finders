@@ -46,8 +46,6 @@ export type SalesOpsRouteResolution = Readonly<{
 
 const tacticalTeam: SalesOpsNavigationItem[] = [
   { id: 'dashboard', label: 'Visão geral', icon: BarChart3 },
-  { id: 'vendedores', label: 'Vendedores', icon: UsersRound },
-  { id: 'finders', label: 'Finders', icon: Search },
 ];
 
 const operational: SalesOpsNavigationItem[] = [
@@ -58,6 +56,8 @@ const operational: SalesOpsNavigationItem[] = [
 const cadastros: SalesOpsNavigationItem[] = [
   { id: 'produtos', label: 'Produtos', icon: Database },
   { id: 'clientes', label: 'Clientes', icon: ContactRound },
+  { id: 'vendedores', label: 'Vendedores', icon: UsersRound },
+  { id: 'finders', label: 'Finders', icon: Search },
   { id: 'geral', label: 'Geral', icon: Cog },
 ];
 
@@ -78,7 +78,7 @@ export const salesOpsWorkspaces: Array<{
 }> = [
   { id: 'tatico', label: 'Tático', description: 'Indicadores e painéis' },
   { id: 'operacional', label: 'Operacional', description: 'Vendas e conferência' },
-  { id: 'cadastros', label: 'Cadastros', description: 'Catálogo e regras' },
+  { id: 'cadastros', label: 'Cadastros', description: 'Pessoas, catálogo e regras' },
   { id: 'meus-dados', label: 'Meus dados', description: 'Painel e comissões pessoais' },
 ];
 

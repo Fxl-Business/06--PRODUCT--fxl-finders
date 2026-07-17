@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import type { HTMLAttributes } from 'react';
+import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import {
   MemoryRouter,
@@ -40,13 +41,26 @@ const mutation = {
   mutate: vi.fn(),
 };
 
+const personFixture = {
+  id: '11111111-1111-4111-8111-111111111111',
+  orgId: '22222222-2222-4222-8222-222222222222',
+  displayName: 'Alex Silva',
+  contactEmail: 'alex.silva@fxl.example',
+  status: 'active' as const,
+  isSeller: true,
+  isFinder: true,
+  isCollaborator: false,
+  createdAt: '2026-07-01T00:00:00.000Z',
+  updatedAt: null,
+};
+
 vi.mock('../hooks', () => ({
   useSalesOpsBootstrap: () => ({
     data: {
       sales: [],
       products: [],
       clients: [],
-      people: [],
+      people: [personFixture],
       payables: [],
       saleItems: [],
       settings: null,
@@ -121,7 +135,10 @@ async function renderRoute(path: string, roles: AppRole[]) {
   root = createRoot(container);
   await act(async () => {
     root?.render(
-      <MemoryRouter initialEntries={[path]}>
+      <MemoryRouter
+        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+        initialEntries={[path]}
+      >
         <Routes>
           <Route element={<SalesOpsApp />} path="/" />
           <Route element={<SalesOpsApp />} path="/:workspace/:view" />
@@ -133,7 +150,11 @@ async function renderRoute(path: string, roles: AppRole[]) {
   await flushReact();
 }
 
-async function renderHistory(entries: string[], roles: AppRole[]) {
+async function renderHistory(
+  entries: string[],
+  roles: AppRole[],
+  startTransition = true,
+) {
   if (root) {
     await act(async () => root?.unmount());
   }
@@ -141,7 +162,11 @@ async function renderHistory(entries: string[], roles: AppRole[]) {
   root = createRoot(container);
   await act(async () => {
     root?.render(
-      <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
+      <MemoryRouter
+        future={{ v7_relativeSplatPath: true, v7_startTransition: startTransition }}
+        initialEntries={entries}
+        initialIndex={entries.length - 1}
+      >
         <Routes>
           <Route element={<SalesOpsApp />} path="/" />
           <Route element={<SalesOpsApp />} path="/:workspace/:view" />
@@ -165,6 +190,14 @@ function buttonByText(label: string): HTMLButtonElement {
   return match;
 }
 
+function buttonByTextOrNull(label: string): HTMLButtonElement | null {
+  return (
+    [...container.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent?.trim() === label,
+    ) ?? null
+  );
+}
+
 function workspaceButton(): HTMLButtonElement {
   const match = container.querySelector('button[title="Trocar workspace"]');
   if (!(match instanceof HTMLButtonElement)) throw new Error('workspace button not found');
@@ -181,6 +214,16 @@ function expectHeading(title: string) {
 
 function expectWorkspace(label: string) {
   expect(workspaceButton().textContent).toContain(label);
+}
+
+function mainRegion(): HTMLElement {
+  const match = container.querySelector('main');
+  if (!(match instanceof HTMLElement)) throw new Error('main region not found');
+  return match;
+}
+
+function buttonByAccessibleName(label: string): HTMLButtonElement | null {
+  return container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
 }
 
 async function click(element: HTMLElement) {
@@ -318,5 +361,180 @@ describe('Sales Ops canonical routing', () => {
     expect(pathname()).toBe('/operacional/vendas');
     expectWorkspace('Operacional');
     expectHeading('Vendas');
+  });
+
+  it('keeps people management in Cadastros and personal people panels read-only', async () => {
+    await renderRoute('/tatico/dashboard', ['admin']);
+    const tacticalNavigation = container.querySelector('aside nav');
+    expect(
+      [...(tacticalNavigation?.querySelectorAll('button') ?? [])].map((item) =>
+        item.getAttribute('aria-label'),
+      ),
+    ).toEqual(['Visão geral']);
+    expect(mainRegion().querySelector('button[aria-label="Vendedores"]')).toBeNull();
+    expect(mainRegion().querySelector('button[aria-label="Finders"]')).toBeNull();
+    expect(buttonByTextOrNull('Novo vendedor')).toBeNull();
+    expect(buttonByTextOrNull('Novo finder')).toBeNull();
+
+    await renderRoute('/tatico/vendedores', ['admin']);
+    expect(pathname()).toBe('/tatico/dashboard');
+    expectHeading('Visão geral');
+
+    await renderRoute('/cadastros/vendedores', ['admin']);
+    expectWorkspace('Cadastros');
+    expectHeading('Vendedores');
+    buttonByText('Novo vendedor');
+    const editSeller = buttonByAccessibleName('Editar Alex Silva');
+    expect(editSeller).not.toBeNull();
+    await click(editSeller!);
+    expect(container.querySelector('h2')?.textContent).toBe('Pessoa');
+
+    await renderRoute('/cadastros/finders', ['admin']);
+    expectWorkspace('Cadastros');
+    expectHeading('Finders');
+    buttonByText('Novo finder');
+    expect(buttonByAccessibleName('Editar Alex Silva')).not.toBeNull();
+
+    for (const personal of [
+      { path: '/meus-dados/vendedores', roles: ['seller'] as AppRole[] },
+      { path: '/meus-dados/finders', roles: ['finder'] as AppRole[] },
+      { path: '/meus-dados/vendedores', roles: ['admin', 'seller'] as AppRole[] },
+    ]) {
+      await renderRoute(personal.path, personal.roles);
+      expectWorkspace('Meus dados');
+      expectHeading('Meu painel');
+      expect(mainRegion().textContent).toContain('0 vendas no período');
+      const personalCard = mainRegion().querySelector('article');
+      expect(personalCard?.textContent).toContain('Alex Silva');
+      await click(personalCard!);
+      expect(buttonByTextOrNull('Novo vendedor')).toBeNull();
+      expect(buttonByTextOrNull('Novo finder')).toBeNull();
+      expect(buttonByAccessibleName('Editar Alex Silva')).toBeNull();
+      expect(container.querySelector('h2')?.textContent).not.toBe('Pessoa');
+    }
+  });
+
+  it('closes people management when the mounted app leaves Cadastros', async () => {
+    await renderRoute('/cadastros/vendedores', ['admin', 'seller']);
+    await click(buttonByText('Novo vendedor'));
+    expect(container.querySelector('h2')?.textContent).toBe('Pessoa');
+    expect(buttonByTextOrNull('Salvar')).not.toBeNull();
+
+    await click(workspaceButton());
+    await click(buttonByText('Tático'));
+    expect(pathname()).toBe('/tatico/dashboard');
+    expectHeading('Visão geral');
+    expect(container.querySelector('h2')).toBeNull();
+    expect(buttonByTextOrNull('Salvar')).toBeNull();
+
+    await click(workspaceButton());
+    await click(buttonByText('Cadastros'));
+    expect(pathname()).toBe('/cadastros/produtos');
+    await click(buttonByAccessibleName('Vendedores')!);
+    expect(pathname()).toBe('/cadastros/vendedores');
+    expect(container.querySelector('h2')).toBeNull();
+
+    await click(buttonByAccessibleName('Editar Alex Silva')!);
+    expect(container.querySelector('h2')?.textContent).toBe('Pessoa');
+
+    await click(workspaceButton());
+    await click(buttonByText('Meus dados'));
+    expect(pathname()).toBe('/meus-dados/vendedores');
+    expectHeading('Meu painel');
+    expect(container.querySelector('h2')).toBeNull();
+    expect(buttonByTextOrNull('Salvar')).toBeNull();
+
+    const personalCard = mainRegion().querySelector('article');
+    expect(personalCard?.textContent).toContain('Alex Silva');
+    await click(personalCard!);
+    expect(container.querySelector('h2')).toBeNull();
+    expect(mutation.mutate).not.toHaveBeenCalled();
+
+    await click(workspaceButton());
+    await click(buttonByText('Cadastros'));
+    await click(buttonByAccessibleName('Vendedores')!);
+    expect(pathname()).toBe('/cadastros/vendedores');
+    expect(container.querySelector('h2')).toBeNull();
+  });
+
+  it('does not restore a stale people dialog through browser history', async () => {
+    await renderHistory(['/tatico/dashboard', '/cadastros/vendedores'], ['admin']);
+    await click(buttonByText('Novo vendedor'));
+    expect(container.querySelector('h2')?.textContent).toBe('Pessoa');
+
+    await click(buttonByText('Back'));
+    expect(pathname()).toBe('/tatico/dashboard');
+    expect(container.querySelector('h2')).toBeNull();
+
+    await click(buttonByText('Forward'));
+    expect(pathname()).toBe('/cadastros/vendedores');
+    expect(container.querySelector('h2')).toBeNull();
+    expect(buttonByTextOrNull('Salvar')).toBeNull();
+  });
+
+  it('closes route-specific people dialogs when history switches people pages', async () => {
+    await renderHistory(['/cadastros/finders', '/cadastros/vendedores'], ['admin']);
+    await click(buttonByText('Novo vendedor'));
+    expect(container.querySelector('h2')?.textContent).toBe('Pessoa');
+
+    await click(buttonByText('Back'));
+    expect(pathname()).toBe('/cadastros/finders');
+    expectHeading('Finders');
+    expect(container.querySelector('h2')).toBeNull();
+    expect(buttonByTextOrNull('Salvar')).toBeNull();
+
+    await click(buttonByText('Forward'));
+    expect(pathname()).toBe('/cadastros/vendedores');
+    expect(container.querySelector('h2')).toBeNull();
+
+    await click(buttonByText('Back'));
+    await click(buttonByText('Novo finder'));
+    expect(container.querySelector('h2')?.textContent).toBe('Pessoa');
+
+    await click(buttonByText('Forward'));
+    expect(pathname()).toBe('/cadastros/vendedores');
+    expectHeading('Vendedores');
+    expect(container.querySelector('h2')).toBeNull();
+    expect(buttonByTextOrNull('Salvar')).toBeNull();
+
+    await click(buttonByText('Back'));
+    expect(pathname()).toBe('/cadastros/finders');
+    expect(container.querySelector('h2')).toBeNull();
+  });
+
+  it('irrevocably clears people dialogs during rapid browser history transitions', async () => {
+    await renderHistory(['/tatico/dashboard', '/cadastros/vendedores'], ['admin'], false);
+    await click(buttonByText('Novo vendedor'));
+    expect(container.querySelector('h2')?.textContent).toBe('Pessoa');
+
+    const queuedMicrotasks: Array<() => void> = [];
+    const queueMicrotaskSpy = vi
+      .spyOn(globalThis, 'queueMicrotask')
+      .mockImplementation((callback) => queuedMicrotasks.push(callback));
+
+    try {
+      await act(async () => {
+        flushSync(() =>
+          buttonByText('Back').dispatchEvent(new MouseEvent('click', { bubbles: true })),
+        );
+        expect(pathname()).toBe('/tatico/dashboard');
+        expect(queuedMicrotasks).toHaveLength(1);
+
+        flushSync(() =>
+          buttonByText('Forward').dispatchEvent(new MouseEvent('click', { bubbles: true })),
+        );
+      });
+      expect(pathname()).toBe('/cadastros/vendedores');
+      expect(queuedMicrotasks).toHaveLength(1);
+
+      await act(async () => {
+        queuedMicrotasks.forEach((callback) => callback());
+      });
+
+      expect(container.querySelector('h2')).toBeNull();
+      expect(buttonByTextOrNull('Salvar')).toBeNull();
+    } finally {
+      queueMicrotaskSpy.mockRestore();
+    }
   });
 });

@@ -1,0 +1,11 @@
+{
+  "agent": "scribe",
+  "slice": "01-cadastros-people-management",
+  "status": "PASS",
+  "report": "nexo/runs/20260717-admin-seller-finder-management/capture.md",
+  "summary": "Recorded slice 01 Gate 2 PASS as provisional pending integrated master verification while preserving the exact parked Hub blocker for slice 02.",
+  "done": true,
+  "started": "2026-07-17T04:30:01Z",
+  "ended": "2026-07-17T04:30:01Z",
+  "ts": "2026-07-17T04:30:01Z"
+}

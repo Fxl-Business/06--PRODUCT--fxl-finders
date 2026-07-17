@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { getDb } from '../../db/client.js';
+import { requireAdmin } from '../../middleware/require-admin.js';
 import {
   ClientSchema,
   CreateSaleSchema,
@@ -41,7 +42,7 @@ salesOpsRouter.get('/people', async (c) => {
   return c.json({ people });
 });
 
-salesOpsRouter.post('/people', async (c) => {
+salesOpsRouter.post('/people', requireAdmin, async (c) => {
   const parsed = PersonSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) {
     return c.json({ error: 'validation_error', issues: parsed.error.flatten() }, 400);
@@ -50,7 +51,7 @@ salesOpsRouter.post('/people', async (c) => {
   return c.json({ person }, 201);
 });
 
-salesOpsRouter.patch('/people/:id', async (c) => {
+salesOpsRouter.patch('/people/:id', requireAdmin, async (c) => {
   const parsed = UpdatePersonSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) {
     return c.json({ error: 'validation_error', issues: parsed.error.flatten() }, 400);
