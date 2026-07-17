@@ -1,0 +1,11 @@
+{
+  "agent": "verify",
+  "slice": "wave-01",
+  "status": "PASS",
+  "report": "nexo/runs/20260717-admin-seller-finder-management/wave-01-verify-retry1.md",
+  "summary": "Integrated master HEAD 6e7eb5392191fcce6da3bad1aa871b501fcaa943 passed 271 tests, lint, type-check, build, dependency audit, diff checks, and security inspection; mutation testing is not configured.",
+  "done": true,
+  "started": "2026-07-17T01:35:45-03:00",
+  "ended": "2026-07-17T01:39:04-03:00",
+  "ts": "2026-07-17T01:39:04-03:00"
+}

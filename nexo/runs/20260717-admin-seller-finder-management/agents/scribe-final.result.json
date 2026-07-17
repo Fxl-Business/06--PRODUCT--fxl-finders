@@ -1,0 +1,11 @@
+{
+  "agent": "scribe",
+  "slice": "final-capture",
+  "status": "PASS",
+  "report": "nexo/runs/20260717-admin-seller-finder-management/capture.md",
+  "summary": "Finalized the run as complete with slice 01 landed and independently verified on master while preserving slice 02 as parked behind the unchanged Hub contract.",
+  "done": true,
+  "started": "2026-07-17T04:40:42Z",
+  "ended": "2026-07-17T04:40:42Z",
+  "ts": "2026-07-17T04:40:42Z"
+}

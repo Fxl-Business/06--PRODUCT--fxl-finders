@@ -22,7 +22,16 @@
 - REPAIR: `0a9ea70` made departure cleanup survive rapid away and return transitions without closing a newer dialog.
 - REPAIR: `887ec01` bound seller and finder dialogs to their exact Cadastros routes so direct history transitions between people pages cannot retain or resurrect a mismatched dialog.
 - VERIFIED: A fresh verifier reported PASS at `887ec01` in `verify-retry2-01.md` after 24 focused web tests, 10 focused API tests, lint, type checks, the diff guard, and security inspection passed.
-- PENDING: The branch has not yet been merged to `master`, so full integrated wave verification remains mandatory before this slice is considered landed.
+- LANDED: Slice 01 merged into `master` in commit `bb46080`.
+
+## Wave 01 - Integrated Gate 2 history
+
+- HISTORY: The first integrated Gate 2 at `bb46080` returned FAIL because `git diff --check ddf1d75..HEAD` found trailing whitespace in `context-pack.md`.
+- REPAIR: Evidence-only commit `6e7eb53` removed the trailing whitespace without changing product behavior.
+- VERIFIED: A fresh verifier returned PASS at exact integrated HEAD `6e7eb53` after 271 tests, lint, type-check, build, dependency audit, working-tree and range diff guards, and security inspection passed.
+- MUTATION: Mutation testing is not configured in this repository, so no mutation command was run and no mutation PASS is claimed.
+- DELIVERY: The executable slice landed on `master`, while slice 02 remains parked.
+- RELEASE: No release, tag, staging promotion, or production promotion was attempted under Autopilot.
 
 ## Tooling observation
 

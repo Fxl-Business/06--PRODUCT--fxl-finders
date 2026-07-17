@@ -1,7 +1,7 @@
 ---
 id: 20260717-admin-seller-finder-management
 milestone: null
-status: awaiting_wave_verify
+status: complete_with_parked
 mode: autopilot
 run: 20260717-admin-seller-finder-management
 ---
@@ -48,9 +48,13 @@ Any missing Hub API or SDK contract required to enumerate product-access account
 | `01-cadastros-people-management` | `done` | Move team seller and finder management from Tatico to Cadastros while preserving personal pages. | None | Wave 1 |
 | `02-admin-account-linking` | `parked` | List FXL Sales accounts for the active workspace and link one account to one tenant-scoped person record. | External Hub product-access directory endpoints and published SDK contract | Wave 1 after unpark and recheck |
 
-Slice 01 passed its independent per-slice Gate 2 at commit `887ec01`.
-The feature is awaiting merge and integrated `master` wave verification before this captured work can be considered landed.
-Slice 02 remains excluded until its documented external unblock condition is satisfied and the plan is rechecked.
+Slice 01 passed its independent per-slice Gate 2 at commit `887ec01` and landed on `master` in merge commit `bb46080`.
+The first integrated Gate 2 returned FAIL because the full feature range contained trailing whitespace in the generated context pack.
+Commit `6e7eb53` repaired that evidence-only diff guard, and a fresh verifier then returned PASS at that exact integrated `master` HEAD after 271 tests, lint, type-check, build, dependency audit, both diff guards, and security inspection passed.
+The overall feature run is complete with parked work because every currently executable slice landed and passed Gate 2, while slice 02 remains excluded until its documented external unblock condition is satisfied and the plan is rechecked.
+Authenticated screenshot and pixel review remains unavailable because no browser backend was exposed in this environment.
+Mutation testing is not configured in this repository and is recorded as unavailable rather than passed.
+No account-linking implementation, release, or environment promotion occurred.
 The raw `waves.sh` derivation assigns both dependency-free plans to Wave 1 because that helper does not filter by status, so the orchestrator must honor the `parked` status before dispatch.
 
 ## Gate 1
